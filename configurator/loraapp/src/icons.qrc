@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>resources/plug-disconnect.png</file>
+        <file>resources/plug-connect.png</file>
+        <file>resources/compile-error.png</file>
+        <file>resources/compile.png</file>
+        <file>resources/compile-warning.png</file>
+    </qresource>
+</RCC>
