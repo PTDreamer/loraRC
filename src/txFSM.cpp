@@ -220,8 +220,8 @@ void txFSM::received() {
 
 void txFSM::sent() {
 	unsigned long m = micros();
-	Serial.println("SENT");
-	Serial.println(m);
+//	Serial.println("SENT");
+//	Serial.println(m);
 	hasSent = true;
 }
 

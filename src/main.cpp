@@ -11,46 +11,48 @@
 //413 a 453mhz
 #define UART_RX0_BUFFER_SIZE 256
 #define UART_TX0_BUFFER_SIZE 256
+#if PTYPE==0
 #define SDO_pin A0
 #define SDI_pin A1
 #define SCLK_pin A2
 #define IRQ_pin 2
 #define nSel_pin 4
 #define IRQ_interrupt 0
-
-//#define SDO_pin 12 //pb4
-//#define SDI_pin 11 //pb3
-//#define SCLK_pin 13 //pb5
+#else
+#define SDO_pin 9
+#define SDI_pin 8
+#define SCLK_pin 7
+#define IRQ_pin 2
+#define nSel_pin 4
+#define IRQ_interrupt 0
+#endif
 
 #define RSSI_out_pin 5
 
 #define PPM_out 3
 
-//#define IRQ_pin 2 //pd2
-//#define nSel_pin 4 //pd4
-//#define IRQ_interrupt 0
-
 #include <RH_RF22JB.h>
+#include <RH_RF22.h>
 #include <RHSoftwareSPI.h>
 #include "softspidriver.h"
 #include "configComms.h"
+#if (PTYPE == 0)
 #include "ppm_in_driver.h"
+#else
 #include "ppm_out_driver.h"
+#endif
 #include "txFSM.h"
 
 settings mySettings;
 SoftwareSPIDriver spi(RHGenericSPI::Frequency1MHz);
 RH_RF22JB rf22(nSel_pin, IRQ_pin, spi);
+
+#if PTYPE==0
 PPMDriver ppm(PIN3, 8);
 txFSM fsm(&ppm);
-Scanner scan(&rf22);
-ConfigComms cc(&rf22, &scan);
+#endif
+
 bool goConfig = false;
-//uint16_t ppmv[8];
-//PPMDriver ppm(PIN3, 8);
-//PPM_OutDriver *ppm;
-uint16_t ppp[8];
-uint8_t pwm[8] = {12, 255,255,255,255,255,255,255};
 int serial_putchar(char c, FILE* f) {
     if (c == '\n') serial_putchar('\r', f);
     return Serial.write(c) == 1? 0 : 1;
@@ -60,23 +62,6 @@ FILE serial_stdout;
 
 void setup()
 {
-  ppp[0] = 0;
-  ppp[1] = 110;
-  ppp[2] = 110;
-  ppp[3] = 110;
-  ppp[4] = 100;
-  ppp[5] = 100;
-  ppp[6] = 100;
-  ppp[7] = 100;
-  Serial.begin(115200);
-  //ppm = new PPM_OutDriver(11 , 8, pwm);
-  //ppm->setPPMValues(ppp);
-//  pinMode(nSel_pin, OUTPUT);
-  //pinMode(IRQ_pin, INPUT);
-  //pinMode(nSel_pin, OUTPUT);
-  //digitalWrite(nSel_pin, HIGH);
-
-//  digitalWrite(nSel_pin, HIGH);
   spi.setPins(SDO_pin, SDI_pin, SCLK_pin);
   spi.begin();
   const char appStr[] = {'l','o','r','a','A','p','p'};
@@ -99,59 +84,45 @@ void setup()
       }
     }
   }
-  //scan.initScan(430, 450, 0.1f, 10);
-  //if (!rf22.init())
-    //Serial.println("init failed");
-  // Defaults after init are 434.0MHz, 0.05MHz AFC pull-in, modulation FSK_Rb2_4Fd36
-  sei();
-  // Set up stdout
 fdev_setup_stream(&serial_stdout, serial_putchar, NULL, _FDEV_SETUP_WRITE);
 stdout = &serial_stdout;
+#if PTYPE == 0
 rf22.setRadioFSM(&fsm);
+#else
+rf22.setRadioFSM(NULL);
+#endif
 if (!rf22.init())
   Serial.println("init failed");
 rf22.setFrequency(413.0);
 rf22.setFHStepSize(25);
-rf22.setRadioID(mySettings.address);
-rf22.setTxPower(mySettings.power);
+
 }
 
-int x = 0;
-
+int x = 1;
 void loop()
 {
-  uint8_t data[] = "And hello back to you";
-  rf22.send(data, sizeof(data));
-  unsigned long m = micros();
-  Serial.println("SEND");
-  Serial.println(m);
-  delay(3000);
-  if (rf22.available())
-  {
-    // Should be a message for us now
-    uint8_t buf[RH_RF22_MAX_MESSAGE_LEN];
-    uint8_t len = sizeof(buf);
-    if (rf22.recv(buf, &len))
-    {
-//      RF22::printBuffer("request: ", buf, len);
-      Serial.print("got request: ");
-      Serial.println((char*)buf);
-//      Serial.print("RSSI: ");
-//      Serial.println(rf22.lastRssi(), DEC);
+#if (PTYPE==0)
+    uint8_t data[] = "And hello back to you";
+    String str = String(x);
+    char charBuffer[50];
+    str.toCharArray(data,4);
+  //  memcpy(data, charBuffer, 50);
+    printf("%d;", x);
+    rf22.send(data, 10);
+    rf22.waitPacketSent();
+    ++x;
+delay(500);
+#else
+uint8_t buf[RH_RF22_MAX_MESSAGE_LEN];
+uint8_t len = sizeof(buf);
+if (rf22.recv(buf, &len))
+{
+  Serial.print("got reply: ");
+  Serial.println((char*)buf);
+//  digitalWrite(PIN3, 0);
+  delay(100);
+//  digitalWrite(PIN3, 1);
 
-      // Send a reply
-      uint8_t data[] = "And hello back to you";
-      rf22.send(data, sizeof(data));
-      rf22.waitPacketSent();
-      Serial.println("Sent a reply");
-    }
-    else
-    {
-      Serial.println("recv failed");
-    }
-  }
-  if(goConfig) {
-      cc.handleConfigComms();
-  }
-
+}
+#endif
 }
