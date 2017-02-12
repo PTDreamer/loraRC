@@ -1,13 +1,13 @@
 #ifndef ConfigComms_h
 #define ConfigComms_h
 
-#include "RH_RF22.h"
+#include "RH_RF22JB.h"
 #include "configMessages.h"
 #include "scanner.h"
 
 class ConfigComms {
 public:
-  ConfigComms(RH_RF22 *radio, Scanner *scan);
+  ConfigComms(RH_RF22JB *radio, Scanner *scan);
   void handleConfigComms();
   void processStarScan(startScanning *msg);
   void processReceivedMessage(configMessage msg);
@@ -22,7 +22,7 @@ private:
     uint8_t lenghtOfPackets;
   } scanInfo;
   void sendScanUpdate(bool flush = false);
-  RH_RF22 *radioHandler;
+  RH_RF22JB *radioHandler;
   parseState currentParseState;
   configMessage receiveMessage;
   configMessage transmitMessage;

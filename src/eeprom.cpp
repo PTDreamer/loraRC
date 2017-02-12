@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @Filename:	ppm_driver.h
+ * @Filename:	eemprom.cpp
  * @Project: 	loraRC
  * @Author: 	Jose Barros
  * @Copyright (C) 2017 Jose Barros
@@ -23,26 +23,18 @@
  * along with loraRC.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pinchangeinterrupt.h"
-class PPMDriver:private PinChangeInterrupt {
-public:
-  struct status {
-    bool newPPM;
-    bool timeout;
-  };
-  PPMDriver(uint8_t pin, uint8_t ppmChannels);
-  void readPPM(uint16_t *buffer);
-  static inline uint16_t servoUs2Bits(uint16_t x);
-  void init();
-  PPMDriver::status getStatus();
-  uint8_t packChannels(volatile uint8_t *p);
-private:
-  virtual void on_interrupt(uint16_t arg = 0);
-  volatile uint8_t ppmCounter;
-  volatile uint8_t ppmAge;
-  volatile uint8_t ppmChannels;
-  uint16_t *ppmValues;
-  uint16_t *previousPpmValues;
-  inline void processPulse(uint16_t pulse);
-  volatile bool newPPM;
-};
+# include "eeprom.h"
+
+Eeprom::Eeprom() {
+
+}
+
+settings Eeprom::getSettings() {
+  settings set;
+  set.radioChannels[0] = 0;
+  set.radioChannels[1] = 1;
+  set.radioChannels[2] = 2;
+  set.radioChannels[3] = 3;
+  set.power = 0x07;
+  return set;
+}

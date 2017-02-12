@@ -1,6 +1,6 @@
 #include "configComms.h"
 #include "checksum.h"
-ConfigComms::ConfigComms(RH_RF22 *radio, Scanner *scan) {
+ConfigComms::ConfigComms(RH_RF22JB *radio, Scanner *scan) {
     radioHandler = radio;
     currentParseState = STATE_IDLE;
     scanner = scan;

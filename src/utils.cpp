@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @Filename:	ppm_driver.h
+ * @Filename:	utils.cpp
  * @Project: 	loraRC
  * @Author: 	Jose Barros
  * @Copyright (C) 2017 Jose Barros
@@ -23,26 +23,39 @@
  * along with loraRC.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pinchangeinterrupt.h"
-class PPMDriver:private PinChangeInterrupt {
-public:
-  struct status {
-    bool newPPM;
-    bool timeout;
-  };
-  PPMDriver(uint8_t pin, uint8_t ppmChannels);
-  void readPPM(uint16_t *buffer);
-  static inline uint16_t servoUs2Bits(uint16_t x);
-  void init();
-  PPMDriver::status getStatus();
-  uint8_t packChannels(volatile uint8_t *p);
-private:
-  virtual void on_interrupt(uint16_t arg = 0);
-  volatile uint8_t ppmCounter;
-  volatile uint8_t ppmAge;
-  volatile uint8_t ppmChannels;
-  uint16_t *ppmValues;
-  uint16_t *previousPpmValues;
-  inline void processPulse(uint16_t pulse);
-  volatile bool newPPM;
-};
+
+#include "utils.h"
+
+Utils *Utils::mutils = NULL;
+
+Utils::Utils() {
+  fdev_setup_stream(&serial_stdout, serial_putchar, NULL, _FDEV_SETUP_WRITE);
+  stdout = &serial_stdout;
+}
+
+void Utils::printfInit() {
+  if(mutils == NULL) {
+    mutils = new Utils();
+  }
+}
+
+int Utils::serial_putchar(char c, FILE* f) {
+  if (c == '\n') serial_putchar('\r', f);
+  return Serial.write(c) == 1 ? 0 : 1;
+}
+
+unsigned long Utils::getUsSince(unsigned long value) {
+  unsigned long timenow = micros();
+  if(timenow < value) {
+    return 0xFFFF - value + timenow;
+  }
+  else return value - timenow;
+}
+
+unsigned long Utils::getmsSince(unsigned long value) {
+  unsigned long timenow = millis();
+  if(timenow < value) {
+    return 0xFFFF - value + timenow;
+  }
+  else return value - timenow;
+}

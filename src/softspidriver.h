@@ -70,7 +70,7 @@
  private:
 
      /// Delay routine for bus timing.
-     void delayPeriod();
+     inline void delayPeriod();
      static volatile uint8_t *pintToPort (uint8_t pin, bool input = false);
      static volatile uint8_t pintToMask (uint8_t pin);
      static volatile uint8_t pintToBit (uint8_t pin);
@@ -85,10 +85,7 @@
      volatile uint8_t *_miso_port;
      volatile uint8_t *_mosi_port;
      volatile uint8_t *_sck_port;
-     uint8_t _bitOrder;
      uint8_t _delayCounts;
-     uint8_t _clockPolarity;
-     uint8_t _clockPhase;
  };
 
  #endif

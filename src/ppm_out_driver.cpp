@@ -24,11 +24,22 @@
  */
 
 #include "ppm_out_driver.h"
+
+#if (F_CPU == 16000000)
 #define PWM_MULTIPLIER 2
-#define PPM_PULSELEN   600//300*2
+#define PPM_PULSELEN   600
 #define PWM_DEJITTER   32
 #define PPM_FRAMELEN   40000
 #define MIN_SYNC 3000
+#elif (F_CPU == 8000000)
+#define PWM_MULTIPLIER 1
+#define PPM_PULSELEN   300
+#define PWM_DEJITTER   16
+#define PPM_FRAMELEN   20000
+#define MIN_SYNC 3000
+#else
+#error F_CPU not supported
+#endif
 
 PPM_OutDriver::PPM_OutDriver(uint8_t pin, uint8_t ppmChannelsToUse, uint8_t *pwm_pins):TimerDriver(),
  ppmChannels(ppmChannelsToUse), ppmCounter(0), nextICR(PPM_FRAMELEN),  ppmSync(PPM_FRAMELEN),
@@ -138,7 +149,7 @@ void PPM_OutDriver::on_overflow_interrupt() {
     }
     else {
       if(useCompB)
-          setOutputCompareValueB(nextICR - PPM_PULSELEN);//clear
+        setOutputCompareValueB(nextICR - PPM_PULSELEN);//clear
       else
         setOutputCompareValueA(nextICR - PPM_PULSELEN);
       COMP[ppmCounter] = nextICR - PPM_PULSELEN;

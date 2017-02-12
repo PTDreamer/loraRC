@@ -27,6 +27,15 @@ struct PACK(startScanning {
   uint8_t bytesPerPacket;
   uint8_t averagingSample;
 });
+
+struct PACK(settings {
+  bool isRX;
+  uint8_t ppmChannels;
+  uint8_t radioChannels[4];
+  uint8_t address;
+  uint8_t power;
+});
+
 struct PACK(stopScanning {
 
 });
@@ -44,6 +53,7 @@ union PACK(configMessages {
   scanInitResult si;
   scanUpdate su;
   stopScanning stop;
+  settings st;
 });
 
 typedef struct PACK(_configMessage {

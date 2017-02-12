@@ -8,7 +8,7 @@
 // Tested on Duemilanove, Uno with Sparkfun RFM22 wireless shield
 // Tested on Flymaple with sparkfun RFM22 wireless shield
 // Tested on ChiKit Uno32 with sparkfun RFM22 wireless shield
-
+//413 a 453mhz
 #define UART_RX0_BUFFER_SIZE 256
 #define UART_TX0_BUFFER_SIZE 256
 #define SDO_pin A0
@@ -30,24 +30,27 @@
 //#define nSel_pin 4 //pd4
 //#define IRQ_interrupt 0
 
-#include <RH_RF22.h>
+#include <RH_RF22JB.h>
 #include <RHSoftwareSPI.h>
 #include "softspidriver.h"
 #include "configComms.h"
-//#include "ppm_driver.h"
+#include "ppm_in_driver.h"
 #include "ppm_out_driver.h"
+#include "txFSM.h"
 
-//RHSoftwareSPI spi(RHGenericSPI::Frequency16MHz);
+settings mySettings;
 SoftwareSPIDriver spi(RHGenericSPI::Frequency1MHz);
-RH_RF22 rf22(nSel_pin, IRQ_pin, spi);
+RH_RF22JB rf22(nSel_pin, IRQ_pin, spi);
+PPMDriver ppm(PIN3, 8);
+txFSM fsm(&ppm);
 Scanner scan(&rf22);
 ConfigComms cc(&rf22, &scan);
 bool goConfig = false;
 //uint16_t ppmv[8];
 //PPMDriver ppm(PIN3, 8);
-PPM_OutDriver *ppm;
+//PPM_OutDriver *ppm;
 uint16_t ppp[8];
-
+uint8_t pwm[8] = {12, 255,255,255,255,255,255,255};
 int serial_putchar(char c, FILE* f) {
     if (c == '\n') serial_putchar('\r', f);
     return Serial.write(c) == 1? 0 : 1;
@@ -57,7 +60,7 @@ FILE serial_stdout;
 
 void setup()
 {
-  ppp[0] = 110;
+  ppp[0] = 0;
   ppp[1] = 110;
   ppp[2] = 110;
   ppp[3] = 110;
@@ -66,8 +69,8 @@ void setup()
   ppp[6] = 100;
   ppp[7] = 100;
   Serial.begin(115200);
-  ppm = new PPM_OutDriver(11 , 8);
-  ppm->setPPMValues(ppp);
+  //ppm = new PPM_OutDriver(11 , 8, pwm);
+  //ppm->setPPMValues(ppp);
 //  pinMode(nSel_pin, OUTPUT);
   //pinMode(IRQ_pin, INPUT);
   //pinMode(nSel_pin, OUTPUT);
@@ -104,72 +107,51 @@ void setup()
   // Set up stdout
 fdev_setup_stream(&serial_stdout, serial_putchar, NULL, _FDEV_SETUP_WRITE);
 stdout = &serial_stdout;
+rf22.setRadioFSM(&fsm);
+if (!rf22.init())
+  Serial.println("init failed");
+rf22.setFrequency(413.0);
+rf22.setFHStepSize(25);
+rf22.setRadioID(mySettings.address);
+rf22.setTxPower(mySettings.power);
 }
-int x = 0;
-// Function that printf and related will use to print
 
+int x = 0;
 
 void loop()
 {
-  ppp[0] = x;
-  ppm->setPPMValues(ppp);
-  ++x;
-  if(x == 1024)
-    x = 0;
-  for(int q = 0; q < 8; ++q) {
-    uint16_t s;
-    uint16_t ss;
-    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    s = (ppm->ICR[q]);
-    ss = ppm->COMP[q];
-    }
-    printf("[%d] ICR:%u COMP:%u\n", q, s,ss);
-  }
-  delay(1000);
-  /*if(x) {
-    digitalWrite(9, true);
-    x = false;
-  }
-  else {
-    digitalWrite(9, false);
-    x = true;
-  }
-  delay(100);*/
-//  _scanResult res = scan.continueScan();
-  //if(res.frequency) {
-    //Serial.println(res.frequency);
-//    Serial.println(res.rssi);
-//  }
-  if(goConfig) {
-      cc.handleConfigComms();
-  }
-  /*
-  //Serial.println("Sending to rf22_server");
-  // Send a message to rf22_server
-  uint8_t data[] = "Hello World!";
+  uint8_t data[] = "And hello back to you";
   rf22.send(data, sizeof(data));
-
-  rf22.waitPacketSent();
-  // Now wait for a reply
-  uint8_t buf[RH_RF22_MAX_MESSAGE_LEN];
-  uint8_t len = sizeof(buf);
-
-  if (rf22.waitAvailableTimeout(500))
+  unsigned long m = micros();
+  Serial.println("SEND");
+  Serial.println(m);
+  delay(3000);
+  if (rf22.available())
   {
-    // Should be a reply message for us now
+    // Should be a message for us now
+    uint8_t buf[RH_RF22_MAX_MESSAGE_LEN];
+    uint8_t len = sizeof(buf);
     if (rf22.recv(buf, &len))
     {
-      Serial.print("got reply: ");
+//      RF22::printBuffer("request: ", buf, len);
+      Serial.print("got request: ");
       Serial.println((char*)buf);
+//      Serial.print("RSSI: ");
+//      Serial.println(rf22.lastRssi(), DEC);
+
+      // Send a reply
+      uint8_t data[] = "And hello back to you";
+      rf22.send(data, sizeof(data));
+      rf22.waitPacketSent();
+      Serial.println("Sent a reply");
     }
     else
     {
       Serial.println("recv failed");
     }
   }
-  else
-  {
-    Serial.println("No reply, is rf22_server running?");
+  if(goConfig) {
+      cc.handleConfigComms();
   }
-  delay(400);*/
+
 }

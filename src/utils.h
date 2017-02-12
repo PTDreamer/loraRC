@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @Filename:	ppm_driver.h
+ * @Filename:	utils.h
  * @Project: 	loraRC
  * @Author: 	Jose Barros
  * @Copyright (C) 2017 Jose Barros
@@ -22,27 +22,22 @@
  * You should have received a copy of the GNU General Public License
  * along with loraRC.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef UTILS_H
+#define UTILS_H
 
-#include "pinchangeinterrupt.h"
-class PPMDriver:private PinChangeInterrupt {
+#include <stdio.h>
+#include "Arduino.h"
+
+class Utils {
 public:
-  struct status {
-    bool newPPM;
-    bool timeout;
-  };
-  PPMDriver(uint8_t pin, uint8_t ppmChannels);
-  void readPPM(uint16_t *buffer);
-  static inline uint16_t servoUs2Bits(uint16_t x);
-  void init();
-  PPMDriver::status getStatus();
-  uint8_t packChannels(volatile uint8_t *p);
-private:
-  virtual void on_interrupt(uint16_t arg = 0);
-  volatile uint8_t ppmCounter;
-  volatile uint8_t ppmAge;
-  volatile uint8_t ppmChannels;
-  uint16_t *ppmValues;
-  uint16_t *previousPpmValues;
-  inline void processPulse(uint16_t pulse);
-  volatile bool newPPM;
+  static unsigned long getUsSince(unsigned long);
+  static unsigned long getmsSince(unsigned long);
+  static FILE serial_stdout;
+  static int serial_putchar(char c, FILE* f);
+  static void printfInit();
+  Utils();
+public:
+  static Utils *mutils;
 };
+
+#endif

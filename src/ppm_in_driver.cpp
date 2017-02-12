@@ -24,12 +24,16 @@
  */
 
 #include "ppm_in_driver.h"
+#include "utils.h"
 #define INVALID 255
+#define PPM_TIMEOUT 1000
 PPMDriver::PPMDriver(uint8_t pin, uint8_t maxPpmChannels):PinChangeInterrupt(pin, PinChangeInterrupt::ON_RISING_MODE) {
   ppmAge = 0;
   ppmCounter = INVALID;
   ppmChannels = maxPpmChannels;
   ppmValues = new uint16_t[maxPpmChannels];
+  previousPpmValues = new uint16_t[maxPpmChannels];
+  newPPM = false;
 }
 
 void PPMDriver::init() {
@@ -42,8 +46,23 @@ void PPMDriver::init() {
 }
 void PPMDriver::readPPM(uint16_t *buffer) {
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    newPPM = false;
     memcpy(buffer, ppmValues, ppmChannels);
+    memcpy(previousPpmValues, ppmValues, ppmChannels);
   }
+}
+
+PPMDriver::status PPMDriver::getStatus() {
+  status s;
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    s.newPPM = newPPM;
+    if(Utils::getmsSince(ppmAge) > PPM_TIMEOUT) {
+      s.timeout = true;
+    }
+    else
+      s.timeout = false;
+  }
+  return s;
 }
 
 void PPMDriver::on_interrupt(uint16_t arg) {
@@ -58,7 +77,12 @@ void PPMDriver::processPulse(uint16_t pulse)
   pulse >>= 1; // clock runs at 2MHz = 0.5uS per tick, this makes it 1uS per tick
   if (pulse > 2500) {      // Verify if this is the sync pulse (2.5ms)
     if (ppmCounter != INVALID) {
-      ppmAge = 0;// brand new PPM data received
+      ppmAge = millis();// brand new PPM data received
+      for(int x = 0; x < ppmChannels; ++ x) {
+        if(ppmValues[x] != previousPpmValues[x]) {
+          newPPM = true;
+        }
+      }
     }
     ppmCounter = 0;
   } else if ((pulse > 700) && (ppmCounter < ppmChannels)) {
@@ -88,3 +112,22 @@ void PPMDriver::processPulse(uint16_t pulse)
     }
     return ret;
   }
+
+uint8_t PPMDriver::packChannels(volatile uint8_t *p)
+{
+  uint8_t i;
+  uint8_t t = 0;
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    newPPM = false;
+    volatile uint16_t *PPM = ppmValues;
+    for (i = 0; i < ppmChannels; i++) { // 4ch packed in 5 bytes
+      if((i & 0x04) == 0x04) {
+        ++t;
+      }
+      p[5 * t] |= ((PPM[i] >> 8) & 3);
+      p[5 * t] = p[5 * t] << 2;
+      p[i + t + 1] = (PPM[i] & 0xff);
+    }
+  }
+  return i + t + 1;
+}

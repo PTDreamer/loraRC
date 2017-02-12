@@ -1,6 +1,6 @@
 #include "scanner.h"
 
-Scanner::Scanner(RH_RF22 *radio) {
+Scanner::Scanner(RH_RF22JB *radio) {
   _radio = radio;
 }
 uint8_t Scanner::initScan(float initialFrequency, float finalFrequency, float stepSize, uint8_t averageRounds) {
@@ -15,8 +15,8 @@ uint8_t Scanner::initScan(float initialFrequency, float finalFrequency, float st
     res |= FAILED_INIT;
   }
   else {
-    RH_RF22::ModemConfig mc;
-    _radio->getModemConfig(RH_RF22::GFSK_Rb125Fd125, &mc);
+    RH_RF22JB::ModemConfig mc;
+    _radio->getModemConfig(RH_RF22JB::GFSK_Rb125Fd125, &mc);
     if (stepSize < 0.02f) {
       mc.reg_1c = 0x32;   // 10.6kHz
     } else if (stepSize < 0.03f) {

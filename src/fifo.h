@@ -1,9 +1,9 @@
 /**
  ******************************************************************************
- * @Filename:	ppm_driver.h
+ * @Filename:	fifo.h
  * @Project: 	loraRC
- * @Author: 	Jose Barros
- * @Copyright (C) 2017 Jose Barros
+ * @Author: 	Jose Barros <jose>
+ * @Copyright (C) 2017 Jose Barros <jose>
  * @Email:  	josemanuelbarros@gmail.com
  *****************************************************************************/
 /*
@@ -23,26 +23,21 @@
  * along with loraRC.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pinchangeinterrupt.h"
-class PPMDriver:private PinChangeInterrupt {
+#include "Arduino.h"
+
+class Fifo {
+  Fifo(uint8_t size);
 public:
-  struct status {
-    bool newPPM;
-    bool timeout;
-  };
-  PPMDriver(uint8_t pin, uint8_t ppmChannels);
-  void readPPM(uint16_t *buffer);
-  static inline uint16_t servoUs2Bits(uint16_t x);
-  void init();
-  PPMDriver::status getStatus();
-  uint8_t packChannels(volatile uint8_t *p);
+  bool push(uint8_t value);
+  uint8_t push(volatile uint8_t *values, uint8_t size);
+  uint8_t pop(bool &ok, bool pending = false);
+  uint8_t pop(volatile uint8_t *values, uint8_t size);
+  uint8_t pendingPop(volatile uint8_t *values, uint8_t size);
+  void confirmPending();
 private:
-  virtual void on_interrupt(uint16_t arg = 0);
-  volatile uint8_t ppmCounter;
-  volatile uint8_t ppmAge;
-  volatile uint8_t ppmChannels;
-  uint16_t *ppmValues;
-  uint16_t *previousPpmValues;
-  inline void processPulse(uint16_t pulse);
-  volatile bool newPPM;
+  volatile uint8_t m_size;
+  volatile uint8_t *buffer;
+  volatile uint8_t buffer_head;
+  volatile uint8_t buffer_tail;
+  volatile uint8_t pending_head;
 };

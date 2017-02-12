@@ -24,7 +24,7 @@
  */
 
  #include "softspidriver.h"
-#define NOP __asm__ __volatile__ ("nop")
+#define NOP __asm__ __volatile__ ("nop");
  SoftwareSPIDriver::SoftwareSPIDriver(Frequency frequency, BitOrder bitOrder, DataMode dataMode)
      :
      RHGenericSPI(frequency, bitOrder, dataMode)
@@ -36,54 +36,53 @@
  // digitalWrite is also slow, taking about 3.5us
  // resulting in very slow SPI bus speeds using this technique, up to about 120us per octet of transfer
  uint8_t SoftwareSPIDriver::transfer(uint8_t data)
- {
-  uint8_t readData;
-  uint8_t writeData;
-  uint8_t builtReturn;
-  uint8_t mask;
-  mask = 0x80;
-  builtReturn = 0;
-  readData = 0;
-  for (uint8_t count=0; count<8; count++) {
- 	  if (data & mask)
- 	  {
- 	    writeData = HIGH;
- 	  }
- 	  else
- 	  {
- 	    writeData = LOW;
- 	  }
- 	  // CPHA=0, miso/mosi changing state now
-    if(writeData)
- 	    *_mosi_port |= _mosi_mask;
-    else
-      *_mosi_port &= ~_mosi_mask;
-    //digitalWrite(_mosi, writeData);
-    *_sck_port &= ~_sck_mask;
- 	  //digitalWrite(_sck, _clockPolarityreadData);
-    NOP;
-    //NOP;
- 	  //delayPeriod();
- 	  // CPHA=0, miso/mosi stable now
-    readData = (*_miso_port & _miso_mask) >> _miso_bit;
- 	  //readData = digitalRead(_miso);
-    *_sck_port |= _sck_mask;
- 	  //digitalWrite(_sck, ~_clockPolarity);
-    NOP;
-    //NOP;
- 	  //delayPeriod();
- 	  mask >>= 1;
-    builtReturn |= (readData << (7 - count));
-  }
-  //digitalWrite(_sck, _clockPolarity);
-  *_sck_port &= ~_sck_mask;//NOT TESTED
-  return builtReturn;
+{
+ uint8_t readData;
+ uint8_t writeData;
+ uint8_t builtReturn;
+ uint8_t mask;
+ mask = 0x80;
+ builtReturn = 0;
+ readData = 0;
+
+ for (uint8_t count=0; count<8; count++) {
+   *_sck_port &= ~_sck_mask;
+   NOP;
+   if (data & mask)
+   {
+     writeData = HIGH;
+   }
+   else
+   {
+     writeData = LOW;
+   }
+   // CPHA=0, miso/mosi changing state now
+   if(writeData)
+     *_mosi_port |= _mosi_mask;
+   else
+     *_mosi_port &= ~_mosi_mask;
+   //digitalWrite(_mosi, writeData);
+   NOP;
+   *_sck_port |= _sck_mask;
+   //digitalWrite(_sck, _clockPolarityreadData);
+   NOP;
+   //NOP;
+   //delayPeriod();
+   // CPHA=0, miso/mosi stable now
+   readData = (*_miso_port & _miso_mask) >> _miso_bit;
+   //NOP;
+   //delayPeriod();
+   mask >>= 1;
+   builtReturn |= (readData << (7 - count));
  }
+ //digitalWrite(_sck, _clockPolarity);
+ return builtReturn;
+}
 
  /// Initialise the SPI library
  void SoftwareSPIDriver::begin()
  {
-     digitalWrite(_sck, 0);
+     digitalWrite(_sck, 1);
  }
 
  /// Disables the SPI bus usually, in this case
@@ -107,9 +106,10 @@
      _sck_mask = pintToMask(sck);
      _miso_bit = pintToBit(miso);
      pinMode(_miso, INPUT);
+     digitalWrite(_miso, 1);
      pinMode(_mosi, OUTPUT);
      pinMode(_sck, OUTPUT);
-     digitalWrite(_sck, _clockPolarity);
+     digitalWrite(_sck, 1);
  }
 
 volatile uint8_t *SoftwareSPIDriver::pintToPort (uint8_t pin, bool input) {
