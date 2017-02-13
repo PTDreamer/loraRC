@@ -30,6 +30,9 @@
 #define MAX_FSM_SEND_TIME 0 // TODO
 
 txFSM::txFSM(PPMDriver *ppm, Fifo *fifo): m_ppm(ppm), serialFifo(fifo) {
+	printf("FSM CONSTRUCTOR\n");
+	context.fsm_timer_remaining_us = 0;
+	context.fsm_timer_enabled = false;
 	fsm_setup();
 }
 
@@ -38,6 +41,7 @@ void txFSM::setRadio(RH_RF22JB *radio) {
 }
 
 void txFSM::fsm_setup() {
+	printf("FSM SETUP\n");
 	fsm_setup_entry			(STATE_FSM_FAULT, &txFSM::go_fsm_fault);
 	fsm_setup_next_state(STATE_FSM_FAULT, EVENT_TIMER_EXPIRY, STATE_INIT);
 
@@ -122,6 +126,8 @@ void txFSM::go_fsm_reset() {
 }
 
 void txFSM::go_fsm_transmit() {
+	printf("transmiting\n");
+	return;
 	PPMDriver::status s = m_ppm->getStatus();
 	uint8_t usedBytes = 0;
 	uint8_t serialBytes = 0;
@@ -153,12 +159,16 @@ void txFSM::go_fsm_transmit() {
 	radio_packet.nextHOPChannel = context.nextHOPChannelUnAcked;
 	radio_packet.rxSeq = ~context.lastReceivedSeq;
 	m_radio->send((uint8_t*)&radio_packet, usedBytes);
-	fsm_timer_start(sendTimeout(usedBytes));
+	//fsm_timer_start(sendTimeout(usedBytes));
 }
 
 void txFSM::fsm_setup_entry(fsm_states state, void (txFSM::*fn)()) {
 	fsm_transitions[state].entry_fn = fn;
-	memset(fsm_transitions[state].next_state, STATE_FSM_FAULT, STATE_NUM_STATES);
+//	memset(fsm_transitions[state].next_state, STATE_FSM_FAULT, EVENT_NUM_EVENTS + 1);  TODO FIND why memset not working
+	for(int x = 0; x < EVENT_NUM_EVENTS; ++x) {
+		fsm_transitions[state].next_state[x] = STATE_FSM_FAULT;
+		printf("fsm_transitions for state %d %d=%d\n", state, x, fsm_transitions[state].next_state[x]);
+	}
 }
 
 void txFSM::fsm_setup_next_state(fsm_states state, fsm_events event, fsm_states nextState) {
@@ -217,17 +227,6 @@ void txFSM::fsm_process_auto()
 			(this->*fsm_transitions[context.curr_state].entry_fn)();
 		}
 	}
-}
-
-void txFSM::received() {
-	hasReceived = true;
-}
-
-void txFSM::sent() {
-	unsigned long m = micros();
-//	Serial.println("SENT");
-//	Serial.println(m);
-	hasSent = true;
 }
 
 void txFSM::validPreambleReceived() {

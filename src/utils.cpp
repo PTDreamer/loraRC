@@ -27,7 +27,7 @@
 #include "utils.h"
 
 Utils *Utils::mutils = NULL;
-
+FILE Utils::serial_stdout = FILE();
 Utils::Utils() {
   fdev_setup_stream(&serial_stdout, serial_putchar, NULL, _FDEV_SETUP_WRITE);
   stdout = &serial_stdout;

@@ -26,8 +26,19 @@
 #define RADIO_FSM_H
 class RadioFSM {
 public:
-  virtual void sent() = 0;
-  virtual void received() = 0;
+  enum fsm_events {
+   EVENT_PACKET_RECEIVED,
+   EVENT_PACKET_SENT,
+   EVENT_TIMER_EXPIRY,
+   EVENT_AUTO,
+
+   EVENT_NUM_EVENTS	/* Must be last */
+  };
+  virtual void sent();
+  virtual void received();
   virtual void validPreambleReceived() = 0;
+  virtual void handle() = 0;
+  virtual void fsm_init() = 0;
+  virtual void fsm_inject_event(enum fsm_events event);
 };
 #endif

@@ -39,8 +39,6 @@ class rxFSM : public RadioFSM {
 public:
   rxFSM(PPM_OutDriver *ppm, Fifo *fifo);
   void handle();
-  void received();
-  void sent();
   void validPreambleReceived();
   void setRadio(RH_RF22JB *radio);
 enum packet_type {TLM_ONLY, PPM_TLM, FAILSAFE_SET, FAILSAFE};
@@ -60,18 +58,11 @@ enum fsm_states {
   STATE_PARSE_RECEIVE,
 	STATE_NUM_STATES	/* Must be last */
 };
-enum fsm_events {
- EVENT_PACKET_RECEIVED,
- EVENT_PACKET_SENT,
- EVENT_TIMER_EXPIRY,
- EVENT_AUTO,
 
- BL_EVENT_NUM_EVENTS	/* Must be last */
-};
 struct fsm_transition {
 
   void (rxFSM::*entry_fn) ();
-	enum fsm_states next_state[BL_EVENT_NUM_EVENTS];
+	enum fsm_states next_state[EVENT_NUM_EVENTS + 1];
  };
  struct fsm_context {
 	enum fsm_states curr_state;
@@ -107,7 +98,7 @@ private:
   void fsm_timer_cancel();
   void fsm_timer_start(unsigned long timer_duration_us);
   enum rxFSM::fsm_states fsm_get_state();
-  struct fsm_transition fsm_transitions[STATE_NUM_STATES];
+  struct fsm_transition fsm_transitions[STATE_NUM_STATES + 1];
   fsm_context context;
   void fsm_setup_entry(fsm_states state, void (rxFSM::*fn)());
   void fsm_setup_next_state(fsm_states state, fsm_events event, fsm_states nextState);
