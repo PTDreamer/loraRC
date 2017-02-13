@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @Filename:	txFSM.h
+ * @Filename:	rxFSM.h
  * @Project: 	loraRC
  * @Author: 	Jose Barros
  * @Copyright (C) 2017 Jose Barros
@@ -23,8 +23,8 @@
  * along with loraRC.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef txFSM_h
-#define  txFSM_h
+#ifndef rxFSM_h
+#define  rxFSM_h
 #include "Arduino.h"
 #include "radio_fsm.h"
 #include "fifo.h"
@@ -32,12 +32,12 @@
 #define SIZE_OF_METADATA      2
 #define TRANSMIT_BUFFER_DATA_SIZE TRANSMIT_BUFFER_SIZE - SIZE_OF_METADATA
 #define NUMBER_OF_HOP_CHANNELS  4
-class PPMDriver;
+class PPM_OutDriver;
 class RH_RF22JB;
 
-class txFSM : public RadioFSM {
+class rxFSM : public RadioFSM {
 public:
-  txFSM(PPMDriver *ppm, Fifo *fifo);
+  rxFSM(PPM_OutDriver *ppm, Fifo *fifo);
   void handle();
   void received();
   void sent();
@@ -69,7 +69,8 @@ enum fsm_events {
  BL_EVENT_NUM_EVENTS	/* Must be last */
 };
 struct fsm_transition {
-  void (txFSM::*entry_fn) ();
+
+  void (rxFSM::*entry_fn) ();
 	enum fsm_states next_state[BL_EVENT_NUM_EVENTS];
  };
  struct fsm_context {
@@ -105,15 +106,15 @@ private:
   void fsm_timer_add_ticks(unsigned long elapsed_us);
   void fsm_timer_cancel();
   void fsm_timer_start(unsigned long timer_duration_us);
-  enum txFSM::fsm_states fsm_get_state();
+  enum rxFSM::fsm_states fsm_get_state();
   struct fsm_transition fsm_transitions[STATE_NUM_STATES];
   fsm_context context;
-  void fsm_setup_entry(fsm_states state, void (txFSM::*fn)());
+  void fsm_setup_entry(fsm_states state, void (rxFSM::*fn)());
   void fsm_setup_next_state(fsm_states state, fsm_events event, fsm_states nextState);
   void fsm_setup();
   volatile bool hasReceived;
   volatile bool hasSent;
-  PPMDriver *m_ppm;
+  PPM_OutDriver *m_ppm;
   RH_RF22JB *m_radio;
   Fifo *serialFifo;
   unsigned long sendTimeout(uint8_t);

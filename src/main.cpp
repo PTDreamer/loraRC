@@ -9,6 +9,7 @@
 // Tested on Flymaple with sparkfun RFM22 wireless shield
 // Tested on ChiKit Uno32 with sparkfun RFM22 wireless shield
 //413 a 453mhz
+#define PTYPE 1
 #define UART_RX0_BUFFER_SIZE 256
 #define UART_TX0_BUFFER_SIZE 256
 #if PTYPE==0
@@ -38,18 +39,24 @@
 #include "configComms.h"
 #if (PTYPE == 0)
 #include "ppm_in_driver.h"
+#include "txFSM.h"
 #else
 #include "ppm_out_driver.h"
+#include "rxFSM.h"
 #endif
-#include "txFSM.h"
+#include "fifo.h"
 
+Fifo fifo(100);
 settings mySettings;
 SoftwareSPIDriver spi(RHGenericSPI::Frequency1MHz);
 RH_RF22JB rf22(nSel_pin, IRQ_pin, spi);
 
 #if PTYPE==0
 PPMDriver ppm(PIN3, 8);
-txFSM fsm(&ppm);
+txFSM fsm(&ppm, &fifo);
+#else
+PPM_OutDriver ppm(PIN3, 8);
+rxFSM fsm(&ppm, &fifo);
 #endif
 
 bool goConfig = false;
@@ -97,10 +104,10 @@ rf22.setFrequency(413.0);
 rf22.setFHStepSize(25);
 
 }
-
 int x = 1;
 void loop()
 {
+  fsm.handle();
 #if (PTYPE==0)
     uint8_t data[] = "And hello back to you";
     String str = String(x);
@@ -125,4 +132,5 @@ if (rf22.recv(buf, &len))
 
 }
 #endif
+
 }

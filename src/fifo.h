@@ -22,12 +22,14 @@
  * You should have received a copy of the GNU General Public License
  * along with loraRC.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#ifndef fifo_h
+#define fifo_h
 #include "Arduino.h"
 
 class Fifo {
-  Fifo(uint8_t size);
 public:
+  Fifo(uint8_t size);
+
   bool push(uint8_t value);
   uint8_t push(volatile uint8_t *values, uint8_t size);
   uint8_t pop(bool &ok, bool pending = false);
@@ -41,3 +43,4 @@ private:
   volatile uint8_t buffer_tail;
   volatile uint8_t pending_head;
 };
+#endif
