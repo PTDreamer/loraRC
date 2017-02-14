@@ -29,7 +29,7 @@
 
 #define MAX_FSM_SEND_TIME 0 // TODO
 
-txFSM::txFSM(PPMDriver *ppm, Fifo *fifo): m_ppm(ppm), serialFifo(fifo) {
+txFSM::txFSM(PPMDriver *ppm, Fifo *fifo) : RadioFSM(fifo), m_ppm(ppm) {
 	printf("FSM CONSTRUCTOR\n");
 	context.fsm_timer_remaining_us = 0;
 	context.fsm_timer_enabled = false;
@@ -162,73 +162,6 @@ void txFSM::go_fsm_transmit() {
 	//fsm_timer_start(sendTimeout(usedBytes));
 }
 
-void txFSM::fsm_setup_entry(fsm_states state, void (txFSM::*fn)()) {
-	fsm_transitions[state].entry_fn = fn;
-//	memset(fsm_transitions[state].next_state, STATE_FSM_FAULT, EVENT_NUM_EVENTS + 1);  TODO FIND why memset not working
-	for(int x = 0; x < EVENT_NUM_EVENTS; ++x) {
-		fsm_transitions[state].next_state[x] = STATE_FSM_FAULT;
-		printf("fsm_transitions for state %d %d=%d\n", state, x, fsm_transitions[state].next_state[x]);
-	}
-}
-
-void txFSM::fsm_setup_next_state(fsm_states state, fsm_events event, fsm_states nextState) {
-	fsm_transitions[state].next_state[event] = nextState;
-}
-enum txFSM::fsm_states txFSM::fsm_get_state()
-{
-	return context.curr_state;
-}
-
-void txFSM::fsm_timer_start(unsigned long timer_duration_us)
-{
-	context.fsm_timer_remaining_us = timer_duration_us;
-	context.fsm_timer_enabled = true;
-}
-
-void txFSM::fsm_timer_cancel()
-{
-	context.fsm_timer_enabled = false;
-}
-
-void txFSM::fsm_timer_add_ticks(unsigned long elapsed_us)
-{
-	if (context.fsm_timer_enabled) {
-		if (elapsed_us >= context.fsm_timer_remaining_us) {
-			/* Timer has expired */
-			context.fsm_timer_remaining_us = 0;
-		} else {
-			/* Timer is still running, account for the elapsed time */
-			context.fsm_timer_remaining_us -= elapsed_us;
-		}
-	}
-}
-
-bool txFSM::fsm_timer_expired_p()
-{
-	if ((context.fsm_timer_enabled) && (context.fsm_timer_remaining_us == 0))
-		return true;
-
-	return false;
-}
-
-void txFSM::go_fsm_fault()
-{
-	fsm_timer_start(10);
-//	led_pwm_config(&context->leds, 2500, 100, 2500, 100);
-}
-
-void txFSM::fsm_process_auto()
-{
-	while (fsm_transitions[context.curr_state].next_state[EVENT_AUTO]) {
-		context.curr_state = fsm_transitions[context.curr_state].next_state[EVENT_AUTO];
-
-		/* Call the entry function (if any) for the next state. */
-		if (fsm_transitions[context.curr_state].entry_fn) {
-			(this->*fsm_transitions[context.curr_state].entry_fn)();
-		}
-	}
-}
-
 void txFSM::validPreambleReceived() {
 	unsigned long m = micros();
 	PORTD |= digitalPinToBitMask(3);
@@ -239,32 +172,6 @@ void txFSM::validPreambleReceived() {
 	Serial.println("PREAMBLE");
 	Serial.println(m);
 	hasSent = true;
-}
-
-void txFSM::fsm_inject_event(enum fsm_events event)
-{
-	/*
-	 * Move to the next state
-	 *
-	 * This is done prior to calling the new state's entry function to
-	 * guarantee that the entry function never depends on the previous
-	 * state.  This way, it cannot ever know what the previous state was.
-	 */
-	context.curr_state = fsm_transitions[context.curr_state].next_state[event];
-
-	/* Call the entry function (if any) for the next state. */
-	if (fsm_transitions[context.curr_state].entry_fn) {
-		(this->*fsm_transitions[context.curr_state].entry_fn)();
-	}
-
-	/* Process any AUTO transitions in the FSM */
-	fsm_process_auto();
-}
-
-void txFSM::fsm_init()
-{
-	context.curr_state = STATE_INIT;
-	fsm_process_auto();
 }
 
 void txFSM::handle() {

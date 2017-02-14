@@ -29,15 +29,11 @@
 
 #define MAX_FSM_SEND_TIME 10000000 // TODO
 
-rxFSM::rxFSM(PPM_OutDriver *ppm, Fifo *fifo): m_ppm(ppm), serialFifo(fifo) {
+rxFSM::rxFSM(PPM_OutDriver *ppm, Fifo *fifo) : RadioFSM(fifo), m_ppm(ppm) {
 	context.fsm_timer_remaining_us = 0;
 	context.fsm_timer_enabled = false;
 	fsm_setup();
 
-}
-
-void rxFSM::setRadio(RH_RF22JB *radio) {
-	m_radio = radio;
 }
 
 void rxFSM::fsm_setup() {
@@ -65,13 +61,6 @@ void rxFSM::fsm_setup() {
 	fsm_setup_next_state(STATE_HOP, EVENT_AUTO, STATE_RECEIVING_PACKET);
 }
 
-float rxFSM::getChannelRSSI(uint8_t channel) {
-	if(context.stats[channel].sentNOK == 0 || context.stats[channel].receivedNOK == 0)
-		return 0xFFFF;
-	float rssi_tx = context.stats[channel].sentOK / context.stats[channel].sentNOK;
-	float rssi_rx = context.stats[channel].receivedOK / context.stats[channel].receivedNOK;
-	return (rssi_tx + rssi_rx) / 2;
-}
 void rxFSM::go_fsm_hop() {
 		printf("HOP\n");
 		if(!context.lastPacketAcked) {
@@ -146,75 +135,6 @@ void rxFSM::go_fsm_transmit() {
 	radio_packet.rxSeq = ~context.lastReceivedSeq;
 	m_radio->send((uint8_t*)&radio_packet, usedBytes);
 	fsm_timer_start(sendTimeout(usedBytes));
-}
-
-void rxFSM::fsm_setup_entry(fsm_states state, void (rxFSM::*fn)()) {
-	fsm_transitions[state].entry_fn = fn;
-//	memset(fsm_transitions[state].next_state, STATE_FSM_FAULT, EVENT_NUM_EVENTS + 1);  TODO FIND why memset not working
-	for(int x = 0; x < EVENT_NUM_EVENTS; ++x) {
-		fsm_transitions[state].next_state[x] = STATE_FSM_FAULT;
-		printf("fsm_transitions for state %d %d=%d\n", state, x, fsm_transitions[state].next_state[x]);
-	}
-}
-
-void rxFSM::fsm_setup_next_state(fsm_states state, fsm_events event, fsm_states nextState) {
-	fsm_transitions[state].next_state[event] = nextState;
-}
-enum rxFSM::fsm_states rxFSM::fsm_get_state()
-{
-	return context.curr_state;
-}
-
-void rxFSM::fsm_timer_start(unsigned long timer_duration_us)
-{
-	context.fsm_timer_remaining_us = timer_duration_us;
-	context.fsm_timer_enabled = true;
-}
-
-void rxFSM::fsm_timer_cancel()
-{
-	context.fsm_timer_enabled = false;
-}
-
-void rxFSM::fsm_timer_add_ticks(unsigned long elapsed_us)
-{
-	if (context.fsm_timer_enabled) {
-		if (elapsed_us >= context.fsm_timer_remaining_us) {
-			/* Timer has expired */
-			context.fsm_timer_remaining_us = 0;
-		} else {
-			/* Timer is still running, account for the elapsed time */
-			context.fsm_timer_remaining_us -= elapsed_us;
-		}
-	}
-}
-
-bool rxFSM::fsm_timer_expired_p()
-{
-	if ((context.fsm_timer_enabled) && (context.fsm_timer_remaining_us == 0))
-		return true;
-
-	return false;
-}
-
-void rxFSM::go_fsm_fault()
-{
-	fsm_timer_start(10);
-	printf("fsm FAULT\n");
-//	led_pwm_config(&context->leds, 2500, 100, 2500, 100);
-}
-
-void rxFSM::fsm_process_auto()
-{
-	while (fsm_transitions[context.curr_state].next_state[EVENT_AUTO]) {
-		printf("current %d\n", context.curr_state);
-		context.curr_state = fsm_transitions[context.curr_state].next_state[EVENT_AUTO];
-		printf("next %d\n", context.curr_state);
-		/* Call the entry function (if any) for the next state. */
-		if (fsm_transitions[context.curr_state].entry_fn) {
-			(this->*fsm_transitions[context.curr_state].entry_fn)();
-		}
-	}
 }
 
 void rxFSM::validPreambleReceived() {
