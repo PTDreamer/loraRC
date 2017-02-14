@@ -33,8 +33,6 @@ class PPMDriver;
 class txFSM : public RadioFSM {
 public:
   txFSM(PPMDriver *ppm, Fifo *fifo);
-  void handle();
-
 private:
   void go_fsm_transmit();
   void go_fsm_reset();

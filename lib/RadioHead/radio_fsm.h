@@ -61,7 +61,7 @@ enum fsm_states {
 	STATE_NUM_STATES	/* Must be last */
 };
 
- struct fsm_context {
+  struct fsm_context {
 	enum fsm_states curr_state;
 
 	/* FSM timer */
@@ -81,8 +81,16 @@ enum fsm_states {
   virtual void sent();
   virtual void received();
   virtual void validPreambleReceived() {};
-  virtual void handle() = 0;
+  virtual void handle();
+  virtual void fsm_init();
   void setRadio(RH_RF22JB *radio);
+
+  virtual void go_fsm_transmit();
+  virtual void go_fsm_reset();
+  virtual void go_fsm_receive();
+  virtual void go_fsm_hop();
+  virtual void go_fsm_parse_receive() {printf("parent SHIT\n");};
+  virtual void go_fsm_fault();
 protected:
   RH_RF22JB *m_radio;
   volatile bool hasReceived;
@@ -97,28 +105,20 @@ protected:
   uint8_t dataBuffer[TRANSMIT_BUFFER_DATA_SIZE];
 } radio_packet;
   float getChannelRSSI(uint8_t channel);
-  fsm_context context;
+  volatile fsm_context context;
   bool fsm_timer_expired_p();
   void fsm_timer_add_ticks(unsigned long elapsed_us);
   void fsm_timer_cancel();
   void fsm_timer_start(unsigned long timer_duration_us);
   void fsm_process_auto();
-  void fsm_init();
   void fsm_inject_event(enum fsm_events event);
   enum RadioFSM::fsm_states fsm_get_state();
   void fsm_setup_entry(fsm_states state, void (RadioFSM::*fn)());
   void fsm_setup_next_state(fsm_states state, fsm_events event, fsm_states nextState);
-  virtual void go_fsm_transmit();
-  virtual void go_fsm_reset();
-  virtual void go_fsm_receive();
-  virtual void go_fsm_hop();
-  virtual void go_fsm_parse_receive();
-  virtual void go_fsm_fault();
   struct fsm_transition {
     void (RadioFSM::*entry_fn) ();
-    enum fsm_states next_state[EVENT_NUM_EVENTS];
+    volatile enum fsm_states next_state[EVENT_NUM_EVENTS];
   };
-  struct fsm_transition fsm_transitions[STATE_NUM_STATES];
-
+  volatile struct fsm_transition fsm_transitions[STATE_NUM_STATES];
 };
 #endif

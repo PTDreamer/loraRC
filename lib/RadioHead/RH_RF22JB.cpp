@@ -692,4 +692,5 @@ void RH_RF22JB::setGpioReversed(bool gpioReversed)
 
 void RH_RF22JB::setRadioFSM(RadioFSM *fsm) {
     radio_fsm = fsm;
+    radio_fsm->setRadio(this);
 }

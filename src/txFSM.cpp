@@ -31,48 +31,37 @@
 
 txFSM::txFSM(PPMDriver *ppm, Fifo *fifo) : RadioFSM(fifo), m_ppm(ppm) {
 	printf("FSM CONSTRUCTOR\n");
-	context.fsm_timer_remaining_us = 0;
-	context.fsm_timer_enabled = false;
-	fsm_setup();
-}
 
-void txFSM::setRadio(RH_RF22JB *radio) {
-	m_radio = radio;
+	fsm_setup();
 }
 
 void txFSM::fsm_setup() {
 	printf("FSM SETUP\n");
-	fsm_setup_entry			(STATE_FSM_FAULT, &txFSM::go_fsm_fault);
+	fsm_setup_entry			(STATE_FSM_FAULT, &RadioFSM::go_fsm_fault);
 	fsm_setup_next_state(STATE_FSM_FAULT, EVENT_TIMER_EXPIRY, STATE_INIT);
 
 	fsm_setup_entry			(STATE_INIT, NULL);
 	fsm_setup_next_state(STATE_INIT, EVENT_AUTO, STATE_SENDING_PACKET);
 
-	fsm_setup_entry			(STATE_SENDING_PACKET, &txFSM::go_fsm_transmit);
+	fsm_setup_entry			(STATE_SENDING_PACKET, &RadioFSM::go_fsm_transmit);
 	fsm_setup_next_state(STATE_SENDING_PACKET, EVENT_TIMER_EXPIRY, STATE_RESET);
 	fsm_setup_next_state(STATE_SENDING_PACKET, EVENT_PACKET_SENT, STATE_RECEIVING_PACKET);
 
-	fsm_setup_entry			(STATE_RESET, &txFSM::go_fsm_reset);
+	fsm_setup_entry			(STATE_RESET, &RadioFSM::go_fsm_reset);
 	fsm_setup_next_state(STATE_RESET, EVENT_AUTO, STATE_SENDING_PACKET);
 
-	fsm_setup_entry			(STATE_RECEIVING_PACKET, &txFSM::go_fsm_receive);
+	fsm_setup_entry			(STATE_RECEIVING_PACKET, &RadioFSM::go_fsm_receive);
 	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_TIMER_EXPIRY, STATE_HOP);
 	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_PACKET_RECEIVED, STATE_PARSE_RECEIVE);
 
-	fsm_setup_entry			(STATE_PARSE_RECEIVE, &txFSM::go_fsm_parse_receive);
+	fsm_setup_entry			(STATE_PARSE_RECEIVE, &RadioFSM::go_fsm_parse_receive);
 	fsm_setup_next_state(STATE_PARSE_RECEIVE, EVENT_AUTO, STATE_HOP);
 
-	fsm_setup_entry			(STATE_HOP, &txFSM::go_fsm_hop);
+	fsm_setup_entry			(STATE_HOP, &RadioFSM::go_fsm_hop);
 	fsm_setup_next_state(STATE_HOP, EVENT_AUTO, STATE_SENDING_PACKET);
 }
 
-float txFSM::getChannelRSSI(uint8_t channel) {
-	if(context.stats[channel].sentNOK == 0 || context.stats[channel].receivedNOK == 0)
-		return 0xFFFF;
-	float rssi_tx = context.stats[channel].sentOK / context.stats[channel].sentNOK;
-	float rssi_rx = context.stats[channel].receivedOK / context.stats[channel].receivedNOK;
-	return (rssi_tx + rssi_rx) / 2;
-}
+
 void txFSM::go_fsm_hop() {
 		if(!context.lastPacketAcked) {
 		if(getChannelRSSI(context.nextHOPChannel) > getChannelRSSI(context.currentHOPChannel)) {
@@ -161,35 +150,6 @@ void txFSM::go_fsm_transmit() {
 	m_radio->send((uint8_t*)&radio_packet, usedBytes);
 	//fsm_timer_start(sendTimeout(usedBytes));
 }
-
-void txFSM::validPreambleReceived() {
-	unsigned long m = micros();
-	PORTD |= digitalPinToBitMask(3);
-	while (micros() - m < 1000) {
-		/* code */
-	}
-	PORTD &= ~digitalPinToBitMask(3);
-	Serial.println("PREAMBLE");
-	Serial.println(m);
-	hasSent = true;
-}
-
-void txFSM::handle() {
-static unsigned long prev_ticks = micros();
-unsigned long elapsed_ticks = micros() - prev_ticks;
-	/* Run the fsm timer */
-	if (elapsed_ticks) {
-		fsm_timer_add_ticks(elapsed_ticks);
-			if (fsm_timer_expired_p() == true) {
-				/* Timer has expired, inject an expiry event */
-			fsm_inject_event(EVENT_TIMER_EXPIRY);
-		}
-			/* pulse the LEDs */
-		//	led_pwm_add_ticks(&bl_fsm_context.leds, elapsed_ticks);
-	//		led_pwm_update_leds(&bl_fsm_context.leds);
-			prev_ticks += elapsed_ticks;
-		}
-	}
 
 unsigned long txFSM::sendTimeout(uint8_t sentBytes) {
 	return 0;

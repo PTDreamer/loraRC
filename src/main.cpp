@@ -46,7 +46,7 @@
 #include "fifo.h"
 #include "utils.h"
 
-Fifo fifo(100);
+Fifo fifo(10);
 settings mySettings;
 SoftwareSPIDriver spi(RHGenericSPI::Frequency1MHz);
 RH_RF22JB rf22(nSel_pin, IRQ_pin, spi);
@@ -105,7 +105,7 @@ if (!rf22.init())
   Serial.println("init failed");
 rf22.setFrequency(413.0);
 rf22.setFHStepSize(25);
-//fsm_pointer->fsm_init();
+fsm_pointer->fsm_init();
 
 }
 int x = 1;
@@ -113,19 +113,22 @@ unsigned long mil = millis();
 
 void loop()
 {
-//  delay(1000);
+  delay(1000);
 #if PTYPE == 1
   fifo.push(0);
   //fifo.push(1);
   //fifo.push(2);
   //fifo.push(3);
-  //fsm_pointer->handle();
+  fsm_pointer->handle();
   if(millis() - mil > 1000) {
     printf("ok\n");
     mil = millis();
 
   }
 #else
+if(millis() - mil > 1000) {
+  printf("ok\n");
+  mil = millis();
 uint8_t data[] = "And hello back to you";
 String str = String(x);
 char charBuffer[50];
@@ -134,6 +137,7 @@ str.toCharArray(data,4);
 printf("%d;", x);
 rf22.send(data, 10);
 rf22.waitPacketSent();
+}
 #endif
 #if 0
 #if (PTYPE==0)

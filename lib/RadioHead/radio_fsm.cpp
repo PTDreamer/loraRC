@@ -19,18 +19,18 @@
 #include "radio_fsm.h"
 #include "Arduino.h"
 RadioFSM::RadioFSM(Fifo *fifo): serialFifo(fifo) {
-
+  context.fsm_timer_enabled = false;
+  hasReceived = false;
+  hasSent = false;
 }
 void RadioFSM::received() {
   hasReceived = true;
-  printf("received handler\n");
-	fsm_inject_event(EVENT_PACKET_RECEIVED);
+//  printf("received handler\n");
 }
 
 void RadioFSM::sent() {
   hasSent = true;
   printf("sent handler\n");
-  fsm_inject_event(EVENT_PACKET_SENT);
 }
 void RadioFSM::setRadio(RH_RF22JB *radio) {
 	m_radio = radio;
@@ -81,8 +81,11 @@ void RadioFSM::fsm_process_auto()
 	while (fsm_transitions[context.curr_state].next_state[EVENT_AUTO]) {
 		printf("current %d\n", context.curr_state);
 		context.curr_state = fsm_transitions[context.curr_state].next_state[EVENT_AUTO];
-		printf("next %d\n", context.curr_state);
-		/* Call the entry function (if any) for the next state. */
+		printf("next %d entry:%d\n", context.curr_state,(fsm_transitions[context.curr_state].entry_fn !=0));
+    for(int x = 0; x < EVENT_NUM_EVENTS; ++x) {
+      printf("state %d event %d = nextState %d\n", context.curr_state, x, fsm_transitions[context.curr_state].next_state[x]);
+    }
+    /* Call the entry function (if any) for the next state. */
 		if (fsm_transitions[context.curr_state].entry_fn) {
 			(this->*fsm_transitions[context.curr_state].entry_fn)();
 		}
@@ -98,8 +101,8 @@ void RadioFSM::fsm_inject_event(enum fsm_events event)
 	 * guarantee that the entry function never depends on the previous
 	 * state.  This way, it cannot ever know what the previous state was.
 	 */
+   printf("inject event %d to state %d next %d\n", event, context.curr_state, fsm_transitions[context.curr_state].next_state[event]);
 	context.curr_state = fsm_transitions[context.curr_state].next_state[event];
-
 	/* Call the entry function (if any) for the next state. */
 	if (fsm_transitions[context.curr_state].entry_fn) {
 		(this->*fsm_transitions[context.curr_state].entry_fn)();
@@ -127,7 +130,7 @@ void RadioFSM::fsm_setup_entry(fsm_states state, void (RadioFSM::*fn)()) {
 void RadioFSM::fsm_setup_next_state(fsm_states state, fsm_events event, fsm_states nextState) {
 	fsm_transitions[state].next_state[event] = nextState;
 }
-enum rxFSM::fsm_states rxFSM::fsm_get_state()
+enum RadioFSM::fsm_states RadioFSM::fsm_get_state()
 {
 	return context.curr_state;
 }
@@ -137,4 +140,31 @@ void RadioFSM::go_fsm_fault()
 	fsm_timer_start(10);
 	printf("fsm FAULT\n");
 //	led_pwm_config(&context->leds, 2500, 100, 2500, 100);
+}
+
+void RadioFSM::handle() {
+static unsigned long prev_ticks = micros();
+unsigned long elapsed_ticks = micros() - prev_ticks;
+//printf("handle: hasReceived %d hasSent %d timerEnabled %d\n", hasReceived, hasSent, context.fsm_timer_enabled);
+if(hasReceived) {
+  hasReceived = false;
+  fsm_inject_event(EVENT_PACKET_RECEIVED);
+}
+return;
+	/* Run the fsm timer */
+	if (elapsed_ticks) {
+		fsm_timer_add_ticks(elapsed_ticks);
+			if (fsm_timer_expired_p() == true) {
+				/* Timer has expired, inject an expiry event */
+			fsm_inject_event(EVENT_TIMER_EXPIRY);
+		}
+			/* pulse the LEDs */
+		//	led_pwm_add_ticks(&bl_fsm_context.leds, elapsed_ticks);
+	//		led_pwm_update_leds(&bl_fsm_context.leds);
+			prev_ticks += elapsed_ticks;
+	}
+  if(hasSent) {
+    hasSent = false;
+    fsm_inject_event(EVENT_PACKET_SENT);
+  }
 }

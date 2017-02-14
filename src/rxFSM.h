@@ -34,7 +34,6 @@ class RH_RF22JB;
 class rxFSM : public RadioFSM {
 public:
   rxFSM(PPM_OutDriver *ppm, Fifo *fifo);
-  void handle();
 private:
   void go_fsm_transmit();
   void go_fsm_reset();

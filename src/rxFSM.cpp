@@ -30,39 +30,39 @@
 #define MAX_FSM_SEND_TIME 10000000 // TODO
 
 rxFSM::rxFSM(PPM_OutDriver *ppm, Fifo *fifo) : RadioFSM(fifo), m_ppm(ppm) {
-	context.fsm_timer_remaining_us = 0;
-	context.fsm_timer_enabled = false;
+
 	fsm_setup();
 
 }
 
 void rxFSM::fsm_setup() {
-	fsm_setup_entry			(STATE_FSM_FAULT, &rxFSM::go_fsm_fault);
+	fsm_setup_entry			(STATE_FSM_FAULT, &RadioFSM::go_fsm_fault);
 	fsm_setup_next_state(STATE_FSM_FAULT, EVENT_TIMER_EXPIRY, STATE_INIT);
 
 	fsm_setup_entry			(STATE_INIT, NULL);
 	fsm_setup_next_state(STATE_INIT, EVENT_AUTO, STATE_RECEIVING_PACKET);
 
-	fsm_setup_entry			(STATE_SENDING_PACKET, &rxFSM::go_fsm_transmit);
+	fsm_setup_entry			(STATE_SENDING_PACKET, &RadioFSM::go_fsm_transmit);
 	fsm_setup_next_state(STATE_SENDING_PACKET, EVENT_TIMER_EXPIRY, STATE_RESET);
 	fsm_setup_next_state(STATE_SENDING_PACKET, EVENT_PACKET_SENT, STATE_RECEIVING_PACKET);
 
-	fsm_setup_entry			(STATE_RESET, &rxFSM::go_fsm_reset);
+	fsm_setup_entry			(STATE_RESET, &RadioFSM::go_fsm_reset);
 	fsm_setup_next_state(STATE_RESET, EVENT_AUTO, STATE_RECEIVING_PACKET);
 
-	fsm_setup_entry			(STATE_RECEIVING_PACKET, &rxFSM::go_fsm_receive);
-	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_TIMER_EXPIRY, STATE_RECEIVING_PACKET);
+	fsm_setup_entry			(STATE_RECEIVING_PACKET, &RadioFSM::go_fsm_receive);
+	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_TIMER_EXPIRY, STATE_HOP);
 	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_PACKET_RECEIVED, STATE_PARSE_RECEIVE);
 
-	fsm_setup_entry			(STATE_PARSE_RECEIVE, &rxFSM::go_fsm_parse_receive);
+	fsm_setup_entry			(STATE_PARSE_RECEIVE, &RadioFSM::go_fsm_parse_receive);
 	fsm_setup_next_state(STATE_PARSE_RECEIVE, EVENT_AUTO, STATE_HOP);
 
-	fsm_setup_entry			(STATE_HOP, &rxFSM::go_fsm_hop);
+	fsm_setup_entry			(STATE_HOP, &RadioFSM::go_fsm_hop);
 	fsm_setup_next_state(STATE_HOP, EVENT_AUTO, STATE_RECEIVING_PACKET);
 }
 
 void rxFSM::go_fsm_hop() {
 		printf("HOP\n");
+		return;
 		if(!context.lastPacketAcked) {
 		if(getChannelRSSI(context.nextHOPChannel) > getChannelRSSI(context.currentHOPChannel)) {
 			//hop to nextHOPChannel
@@ -81,6 +81,7 @@ void rxFSM::go_fsm_hop() {
 
 void rxFSM::go_fsm_parse_receive() {
 	printf("parse receive\n");
+	return;
 	uint8_t len = sizeof(radio_packet);
 	m_radio->recv((uint8_t*)&radio_packet, &len);
 	if(radio_packet.rxSeq == ~context.lastReceivedSeq) {
@@ -103,9 +104,9 @@ void rxFSM::go_fsm_parse_receive() {
 }
 
 void rxFSM::go_fsm_receive() {
-	printf("receiving\n");
+	printf("receiving here\n");
 	m_radio->setModeRx();
-	fsm_timer_start(MAX_FSM_SEND_TIME);
+	//fsm_timer_start(MAX_FSM_SEND_TIME);
 }
 
 void rxFSM::go_fsm_reset() {
@@ -136,61 +137,6 @@ void rxFSM::go_fsm_transmit() {
 	m_radio->send((uint8_t*)&radio_packet, usedBytes);
 	fsm_timer_start(sendTimeout(usedBytes));
 }
-
-void rxFSM::validPreambleReceived() {
-	unsigned long m = micros();
-	PORTD |= digitalPinToBitMask(3);
-	while (micros() - m < 1000) {
-		/* code */
-	}
-	PORTD &= ~digitalPinToBitMask(3);
-	Serial.println("PREAMBLE");
-	Serial.println(m);
-	hasSent = true;
-}
-
-void rxFSM::fsm_inject_event(enum fsm_events event)
-{
-	/*
-	 * Move to the next state
-	 *
-	 * This is done prior to calling the new state's entry function to
-	 * guarantee that the entry function never depends on the previous
-	 * state.  This way, it cannot ever know what the previous state was.
-	 */
-	context.curr_state = fsm_transitions[context.curr_state].next_state[event];
-
-	/* Call the entry function (if any) for the next state. */
-	if (fsm_transitions[context.curr_state].entry_fn) {
-		(this->*fsm_transitions[context.curr_state].entry_fn)();
-	}
-
-	/* Process any AUTO transitions in the FSM */
-	fsm_process_auto();
-}
-
-void rxFSM::fsm_init()
-{
-	context.curr_state = STATE_INIT;
-	fsm_process_auto();
-}
-
-void rxFSM::handle() {
-static unsigned long prev_ticks = micros();
-unsigned long elapsed_ticks = micros() - prev_ticks;
-	/* Run the fsm timer */
-	if (elapsed_ticks) {
-		fsm_timer_add_ticks(elapsed_ticks);
-			if (fsm_timer_expired_p() == true) {
-				/* Timer has expired, inject an expiry event */
-			fsm_inject_event(EVENT_TIMER_EXPIRY);
-		}
-			/* pulse the LEDs */
-		//	led_pwm_add_ticks(&bl_fsm_context.leds, elapsed_ticks);
-	//		led_pwm_update_leds(&bl_fsm_context.leds);
-			prev_ticks += elapsed_ticks;
-		}
-	}
 
 unsigned long rxFSM::sendTimeout(uint8_t sentBytes) {
 	return 0;
