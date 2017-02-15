@@ -18,6 +18,7 @@
 
 #include "radio_fsm.h"
 #include "Arduino.h"
+#include "../../src/utils.h"
 RadioFSM::RadioFSM(Fifo *fifo): serialFifo(fifo) {
   context.fsm_timer_enabled = false;
   hasReceived = false;
@@ -123,7 +124,7 @@ void RadioFSM::fsm_setup_entry(fsm_states state, void (RadioFSM::*fn)()) {
 //	memset(fsm_transitions[state].next_state, STATE_FSM_FAULT, EVENT_NUM_EVENTS + 1);  TODO FIND why memset not working
 	for(int x = 0; x < EVENT_NUM_EVENTS; ++x) {
 		fsm_transitions[state].next_state[x] = STATE_FSM_FAULT;
-		printf("fsm_transitions for state %d %d=%d\n", state, x, fsm_transitions[state].next_state[x]);
+	//	printf("fsm_transitions for state %d %d=%d\n", state, x, fsm_transitions[state].next_state[x]);
 	}
 }
 
@@ -143,6 +144,7 @@ void RadioFSM::go_fsm_fault()
 }
 
 void RadioFSM::handle() {
+
 static unsigned long prev_ticks = micros();
 unsigned long elapsed_ticks = micros() - prev_ticks;
 //printf("handle: hasReceived %d hasSent %d timerEnabled %d\n", hasReceived, hasSent, context.fsm_timer_enabled);

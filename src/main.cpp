@@ -1,14 +1,14 @@
-#if PTYPE==1
-#define SDO_pin A0
-#define SDI_pin A1
-#define SCLK_pin A2
+#if (ISTRANSMITER)
+#define SDO_pin 9
+#define SDI_pin 8
+#define SCLK_pin 7
 #define IRQ_pin 2
 #define nSel_pin 4
 #define IRQ_interrupt 0
 #else
-#define SDO_pin 9
-#define SDI_pin 8
-#define SCLK_pin 7
+#define SDO_pin A0
+#define SDI_pin A1
+#define SCLK_pin A2
 #define IRQ_pin 2
 #define nSel_pin 4
 #define IRQ_interrupt 0
@@ -31,7 +31,7 @@
 #endif
 #include "fifo.h"
 #include "utils.h"
-
+#include <avr/wdt.h>
 Fifo fifo(10);
 settings mySettings;
 SoftwareSPIDriver spi(RHGenericSPI::Frequency1MHz);
@@ -67,7 +67,9 @@ void setup()
     }
   }
   Utils::printfInit();
+  Serial.write("RESTART");
 
+MEM_REPORT;
   #if (ISTRANSMITER)
   PPMDriver ppm(PIN3, 8);
   txFSM fsm(&ppm, &fifo);
@@ -83,21 +85,20 @@ void setup()
   rf22.setFrequency(413.0);
   rf22.setFHStepSize(25);
   fsm_pointer->fsm_init();
+  wdt_disable();
+
+  Serial.println("loop");
 }
 int x = 1;
 unsigned long mil = millis();
+
 void loop()
 {
-  delay(1000);
-  MEM_REPORT;
-#if (ISTRANSMITER)
-  fifo.push(0);
-  fifo.push(1);
-  fifo.push(2);
-  fifo.push(3);
+      MEM_REPORT;
+#if (ISTRANSMITER == 0)
   fsm_pointer->handle();
   if(millis() - mil > 1000) {
-    printf("ok\n");
+    Serial.println("ok\n");
     mil = millis();
   }
 #else
@@ -140,4 +141,10 @@ if (rf22.recv(buf, &len))
 #endif
 #endif
 
+}
+ISR(WDT_vect)
+{
+Serial.println("Watchdog Interrupt - Restarting");
+// you can include any code here. With the reset disabled you could perform an action here every time
+// the watchdog times out...
 }
