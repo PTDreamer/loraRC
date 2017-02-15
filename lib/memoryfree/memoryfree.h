@@ -1,9 +1,9 @@
 /**
  ******************************************************************************
- * @Filename:	ppm_driver.cpp
+ * @Filename:	memoryfree.h
  * @Project: 	loraRC
- * @Author: 	Jose Barros
- * @Copyright (C) 2017 Jose Barros
+ * @Author: 	Jose Barros <jose>
+ * @Copyright (C) 2017 Jose Barros <jose>
  * @Email:  	josemanuelbarros@gmail.com
  *****************************************************************************/
 /*
@@ -23,18 +23,21 @@
  * along with loraRC.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ppm_in_driverlixo.h"
-#define INVALID 255
-lixo::lixo(uint8_t pin):PinChangeInterrupt(pin, PinChangeInterrupt::ON_RISING_MODE) {
 
-}
 
-void lixo::init() {
-  begin();
-  enable();
-}
-void lixo::on_interrupt(uint16_t arg) {
-  unsigned long m = micros();
-  Serial.println("RECEIVED");
-  Serial.println(m);
-}
+ // memoryFree header
+
+ #ifndef      MEMORY_FREE_H
+ #define MEMORY_FREE_H
+
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+
+ int freeMemory();
+
+ #ifdef  __cplusplus
+ }
+ #endif
+
+ #endif

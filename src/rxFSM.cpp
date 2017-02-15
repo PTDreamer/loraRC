@@ -61,7 +61,7 @@ void rxFSM::fsm_setup() {
 }
 
 void rxFSM::go_fsm_hop() {
-		printf("HOP\n");
+		Serial.print("HOP\n");
 		return;
 		if(!context.lastPacketAcked) {
 		if(getChannelRSSI(context.nextHOPChannel) > getChannelRSSI(context.currentHOPChannel)) {
@@ -80,7 +80,7 @@ void rxFSM::go_fsm_hop() {
 }
 
 void rxFSM::go_fsm_parse_receive() {
-	printf("parse receive\n");
+	Serial.print("parse receive\n");
 	return;
 	uint8_t len = sizeof(radio_packet);
 	m_radio->recv((uint8_t*)&radio_packet, &len);
@@ -104,7 +104,7 @@ void rxFSM::go_fsm_parse_receive() {
 }
 
 void rxFSM::go_fsm_receive() {
-	printf("receiving here\n");
+	Serial.print("receiving here\n");
 	m_radio->setModeRx();
 	//fsm_timer_start(MAX_FSM_SEND_TIME);
 }

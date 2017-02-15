@@ -1,9 +1,9 @@
 /**
  ******************************************************************************
- * @Filename:	types.h
+ * @Filename:	memoryfree.cpp
  * @Project: 	loraRC
- * @Author: 	Jose Barros
- * @Copyright (C) 2017 Jose Barros
+ * @Author: 	Jose Barros <jose>
+ * @Copyright (C) 2017 Jose Barros <jose>
  * @Email:  	josemanuelbarros@gmail.com
  *****************************************************************************/
 /*
@@ -23,30 +23,32 @@
  * along with loraRC.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Arduino.h"
-//#include <avr/io.h>
-//#include <avr/sleep.h>
-//#include <avr/eeprom.h>
-//#include <avr/interrupt.h>
-//#include <avr/pgmspace.h>
-//#include <avr/sfr_defs.h>
 
-/**
- * Restore processor flags and possible enable of interrupts.
- * Internal clean up function for synchronized block.
- * @param[in] key processor flags.
- */
-inline void __unlock(uint8_t* key) __attribute__((always_inline));
-inline void __unlock(uint8_t* key)
+
+ /*
+* MemoryFree.c
+* returns the number of free RAM bytes
+*/
+
+#include "Arduino.h"
+#include "memoryfree.h"
+
+extern unsigned int __data_start;
+extern unsigned int __data_end;
+extern unsigned int __bss_start;
+extern unsigned int __bss_end;
+extern unsigned int __heap_start;
+extern void *__brkval;
+
+
+int freeMemory()
 {
-  SREG = *key;
-  __asm__ __volatile__("" ::: "memory");
+ int free_memory;
+
+ if((int)__brkval == 0)
+    free_memory = ((int)&free_memory) - ((int)&__bss_end);
+ else
+   free_memory = ((int)&free_memory) - ((int)__brkval);
+
+ return free_memory;
 }
-inline uint8_t lock() __attribute__((always_inline));
-inline uint8_t lock()
-{
-  uint8_t key = SREG;
-  __asm__ __volatile__("cli" ::: "memory");
-  return (key);
-}
- #define synchronized	for (uint8_t __key __attribute__((__cleanup__(__unlock))) = lock(),	i = 1; i != 0; i--)

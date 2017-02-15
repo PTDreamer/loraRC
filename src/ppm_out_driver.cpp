@@ -62,6 +62,9 @@ PPM_OutDriver::PPM_OutDriver(uint8_t pin, uint8_t ppmChannelsToUse, uint8_t *pwm
   ppm_pin =  _BV(pin < 8  ? pin : pin < 14 ? pin - 8 : pin - 14);
   pinMode(pin, OUTPUT);
   PPM = new uint16_t[ppmChannelsToUse];
+  ICR = new uint16_t[ppmChannelsToUse];
+  COMP = new uint16_t[ppmChannelsToUse];
+
   timerConfig cfg;
   useCompB = true;
   useOCPin = true;

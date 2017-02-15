@@ -27,7 +27,11 @@
 
 #include <stdio.h>
 #include "Arduino.h"
-
+#if (MEMORYPROFILE)
+#define MEM_REPORT Utils::memrep()
+#else
+#define MEM_REPORT
+#endif
 class Utils {
 public:
   static unsigned long getUsSince(unsigned long);
@@ -35,6 +39,10 @@ public:
   static FILE serial_stdout;
   static int serial_putchar(char c, FILE* f);
   static void printfInit();
+  #if (MEMORYPROFILE)
+  static void memrep();
+  static void check_mem();
+  #endif
   Utils();
 public:
   static Utils *mutils;

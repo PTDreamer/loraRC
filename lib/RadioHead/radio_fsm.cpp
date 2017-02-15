@@ -25,12 +25,12 @@ RadioFSM::RadioFSM(Fifo *fifo): serialFifo(fifo) {
 }
 void RadioFSM::received() {
   hasReceived = true;
-//  printf("received handler\n");
+  Serial.print("received handler\n");
 }
 
 void RadioFSM::sent() {
   hasSent = true;
-  printf("sent handler\n");
+  Serial.print("sent handler\n");
 }
 void RadioFSM::setRadio(RH_RF22JB *radio) {
 	m_radio = radio;
@@ -79,11 +79,11 @@ bool RadioFSM::fsm_timer_expired_p()
 void RadioFSM::fsm_process_auto()
 {
 	while (fsm_transitions[context.curr_state].next_state[EVENT_AUTO]) {
-		printf("current %d\n", context.curr_state);
+	//	printf("current %d\n", context.curr_state);
 		context.curr_state = fsm_transitions[context.curr_state].next_state[EVENT_AUTO];
-		printf("next %d entry:%d\n", context.curr_state,(fsm_transitions[context.curr_state].entry_fn !=0));
+	//	printf("next %d entry:%d\n", context.curr_state,(fsm_transitions[context.curr_state].entry_fn !=0));
     for(int x = 0; x < EVENT_NUM_EVENTS; ++x) {
-      printf("state %d event %d = nextState %d\n", context.curr_state, x, fsm_transitions[context.curr_state].next_state[x]);
+  //    printf("state %d event %d = nextState %d\n", context.curr_state, x, fsm_transitions[context.curr_state].next_state[x]);
     }
     /* Call the entry function (if any) for the next state. */
 		if (fsm_transitions[context.curr_state].entry_fn) {
@@ -101,7 +101,7 @@ void RadioFSM::fsm_inject_event(enum fsm_events event)
 	 * guarantee that the entry function never depends on the previous
 	 * state.  This way, it cannot ever know what the previous state was.
 	 */
-   printf("inject event %d to state %d next %d\n", event, context.curr_state, fsm_transitions[context.curr_state].next_state[event]);
+   //printf("inject event %d to state %d next %d\n", event, context.curr_state, fsm_transitions[context.curr_state].next_state[event]);
 	context.curr_state = fsm_transitions[context.curr_state].next_state[event];
 	/* Call the entry function (if any) for the next state. */
 	if (fsm_transitions[context.curr_state].entry_fn) {
@@ -138,7 +138,7 @@ enum RadioFSM::fsm_states RadioFSM::fsm_get_state()
 void RadioFSM::go_fsm_fault()
 {
 	fsm_timer_start(10);
-	printf("fsm FAULT\n");
+	Serial.print("fsm FAULT\n");
 //	led_pwm_config(&context->leds, 2500, 100, 2500, 100);
 }
 
