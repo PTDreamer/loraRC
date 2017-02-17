@@ -36,8 +36,6 @@ public:
   virtual void on_compareBinterrupt();
   virtual void on_input_capture_interrupt() {};
   void setPPMValues(uint16_t *values);
-  uint16_t *COMP;
-  uint16_t *ICR;
 private:
   struct pin_control {
     volatile uint8_t *port;
@@ -57,7 +55,7 @@ private:
   bool disablePWM;
   bool useCompB;
   bool useOCPin;
-  void allPWMChannelsDown();
-  void PWMChannelsUp(uint8_t channel);
+  inline void allPWMChannelsDown();
+  inline void PWMChannelsUp(uint8_t channel);
 };
 #endif

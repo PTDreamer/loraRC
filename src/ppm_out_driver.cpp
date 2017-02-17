@@ -62,8 +62,6 @@ PPM_OutDriver::PPM_OutDriver(uint8_t pin, uint8_t ppmChannelsToUse, uint8_t *pwm
   ppm_pin =  _BV(pin < 8  ? pin : pin < 14 ? pin - 8 : pin - 14);
   pinMode(pin, OUTPUT);
   PPM = new uint16_t[ppmChannelsToUse];
-  ICR = new uint16_t[ppmChannelsToUse];
-  COMP = new uint16_t[ppmChannelsToUse];
 
   timerConfig cfg;
   useCompB = true;
@@ -109,12 +107,11 @@ void PPM_OutDriver::on_compareBinterrupt() {
 
 void PPM_OutDriver::on_overflow_interrupt() {
   if(!useOCPin) {
-    *ppm_port |= ppm_pin;
+    *ppm_port |= ppm_pin;//turn pin high
   }
   if (ppmCounter < ppmChannels) {
     setInputCapture(nextICR);
     nextICR = servoBits2Us(PPM[ppmCounter]) * PWM_MULTIPLIER;
-    ICR[ppmCounter] = nextICR;
     ppmSync -= nextICR;
     if (ppmSync < (MIN_SYNC * PWM_MULTIPLIER)) {
       ppmSync = MIN_SYNC * PWM_MULTIPLIER;
@@ -124,13 +121,11 @@ void PPM_OutDriver::on_overflow_interrupt() {
         setOutputCompareValueB(65535); //do not generate a pulse
       else
         setOutputCompareValueA(65535);
-      COMP[ppmCounter] = 65535;
     } else {
       if(useCompB)
         setOutputCompareValueB(nextICR - PPM_PULSELEN);//clear
       else
         setOutputCompareValueA(nextICR - PPM_PULSELEN);
-      COMP[ppmCounter] = nextICR - PPM_PULSELEN;
     }
     //Clear OC1A/OC1B on Compare Match, set OC1A/OC1B at BOTTOM (non-inverting mode)
     while (getTimerValue() < PWM_DEJITTER);
@@ -142,21 +137,17 @@ void PPM_OutDriver::on_overflow_interrupt() {
   } else {
     setInputCapture(nextICR);
     nextICR = ppmSync;
-    ICR[ppmCounter] = nextICR;
     if (disablePPM) {
       if(useCompB)
         setOutputCompareValueB(65535); //do not generate a pulse
       else
         setOutputCompareValueA(65535);
-        COMP[ppmCounter] = 65535;
     }
     else {
       if(useCompB)
         setOutputCompareValueB(nextICR - PPM_PULSELEN);//clear
       else
         setOutputCompareValueA(nextICR - PPM_PULSELEN);
-      COMP[ppmCounter] = nextICR - PPM_PULSELEN;
-
     }
     ppmSync = PPM_FRAMELEN;
     while (getTimerValue() < PWM_DEJITTER);
@@ -168,7 +159,7 @@ void PPM_OutDriver::on_overflow_interrupt() {
   }
 }
 
-uint16_t PPM_OutDriver::servoBits2Us(uint16_t x)
+inline uint16_t PPM_OutDriver::servoBits2Us(uint16_t x)
 {
   uint16_t ret;
 
@@ -195,7 +186,7 @@ void PPM_OutDriver::setPPMValues(uint16_t *value) {
   }
 }
 
-void PPM_OutDriver::allPWMChannelsDown() {
+inline void PPM_OutDriver::allPWMChannelsDown() {
   for(uint8_t x = 0; x < ppmChannels; ++ x) {
     if(pwmPins[x].port) {
       *pwmPins[x].port &= ~pwmPins[x].mask;
@@ -203,7 +194,7 @@ void PPM_OutDriver::allPWMChannelsDown() {
   }
 }
 
-void PPM_OutDriver::PWMChannelsUp(uint8_t channel) {
+inline void PPM_OutDriver::PWMChannelsUp(uint8_t channel) {
   if(pwmPins[channel].port) {
     *pwmPins[channel].port |= pwmPins[channel].mask;
   }

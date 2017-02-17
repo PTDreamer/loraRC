@@ -120,24 +120,6 @@ void TimerDriver::disableInterrupts(uint8_t interrupts) {
   enabledInterrupts &= ~interrupts;
 }
 
-void TimerDriver::setOutputCompareValueA(uint16_t value) {
-  if(OCRAH)
-    OCR1A = value;
-  else
-  *OCRAL = value & 0xFF;
-}
-
-void TimerDriver::setOutputCompareValueB(uint16_t value) {
-  if(OCRBH)
-    OCR1B = value;
-  else
-  *OCRBL = value & 0xFF;
-}
-
-void TimerDriver::setInputCapture(uint16_t value) {
-  ICR1 = value;
-}
-
 uint16_t TimerDriver::getOutputCompareValueA() {
   uint16_t ret;
   if(OCRAH)
@@ -162,14 +144,6 @@ uint16_t TimerDriver::getInputCapture() {
   return ret;
 }
 
-uint16_t TimerDriver::getTimerValue() {
-  uint16_t ret;
-  if(TCNTH)
-    ret = TCNT1;
-  else
-    ret = *TCNTL;
-  return ret;
-}
 void TimerDriver::on_compareAinterrupt_priv(uint8_t ix) {
   for (TimerDriver* tim = s_pin[ix]; tim != NULL; tim = tim->m_next) {
     if(tim->enabledInterrupts & INT_ON_COMPARE_A)

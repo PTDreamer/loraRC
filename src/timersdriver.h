@@ -103,13 +103,30 @@ public:
   void init(timerConfig cfg);
   void enableInterrupts(uint8_t interrupts);
   void disableInterrupts(uint8_t interrupts);
-  void setOutputCompareValueA(uint16_t value);
-  void setOutputCompareValueB(uint16_t value);
-  void setInputCapture(uint16_t value);
+  inline void setOutputCompareValueA(uint16_t value) {
+    if(OCRAH)
+      OCR1A = value;
+    else
+    *OCRAL = value & 0xFF;
+  }
+  inline void setOutputCompareValueB(uint16_t value) {
+    if(OCRBH)
+      OCR1B = value;
+    else
+    *OCRBL = value & 0xFF;
+  }
+  inline void setInputCapture(uint16_t value) {ICR1 = value;}
   uint16_t getOutputCompareValueA();
   uint16_t getOutputCompareValueB();
   uint16_t getInputCapture();
-  uint16_t getTimerValue();
+  inline uint16_t getTimerValue(){
+    uint16_t ret;
+    if(TCNTH)
+      ret = TCNT1;
+    else
+      ret = *TCNTL;
+    return ret;
+  }
   static void on_compareAinterrupt_priv(uint8_t ix);
   static void on_compareBinterrupt_priv(uint8_t ix);
   static void on_overflow_interrupt_priv(uint8_t ix);
