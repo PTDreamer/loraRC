@@ -37,7 +37,7 @@ settings mySettings;
 SoftwareSPIDriver spi(RHGenericSPI::Frequency1MHz);
 RH_RF22JB rf22(nSel_pin, IRQ_pin, spi);
 
-RadioFSM *fsm_pointer;
+RadioFSM *fsm;
 
 bool goConfig = false;
 
@@ -72,21 +72,17 @@ void setup()
 MEM_REPORT;
   #if (ISTRANSMITER)
   PPMDriver ppm(PIN3, 8);
-  txFSM fsm(&ppm, &fifo);
+  fsm = new txFSM(&ppm, &fifo);
   #else
-  PPM_OutDriver ppm(PIN3, 8);
-  rxFSM fsm(&ppm, &fifo);
+  PPM_OutDriver *ppm = new PPM_OutDriver(PIN3, 8);
+  fsm = new rxFSM(ppm, &fifo);
   #endif
 
-  fsm_pointer = &fsm;
-  rf22.setRadioFSM(&fsm);
+  rf22.setRadioFSM(fsm);
   if (!rf22.init())
     Serial.println("init failed");
   rf22.setFrequency(413.0);
   rf22.setFHStepSize(25);
-  fsm_pointer->fsm_init();
-  wdt_disable();
-
   Serial.println("loop");
 }
 int x = 1;
@@ -94,27 +90,43 @@ unsigned long mil = millis();
 
 void loop()
 {
-      MEM_REPORT;
+  fsm->fsm_init();
+  while (true) {
 #if (ISTRANSMITER == 0)
-  fsm_pointer->handle();
-  if(millis() - mil > 1000) {
+  fsm->handle();
+  if(millis() - mil > 10000) {
+    Utils::handlePrintDelayed();
     Serial.println("ok\n");
+    Serial.println(x);
+    ++x;
+    Serial.println(fsm->context.curr_state);
     mil = millis();
   }
+}
 #else
-
-  if(millis() - mil > 1000) {
-    printf("ok\n");
-    mil = millis();
-  char data[] = "And hello back to you";
-  String str = String(x);
-  str.toCharArray(data,4);
-  printf("%d;", x);
-  rf22.send((uint8_t*)data, 10);
-  rf22.waitPacketSent();
-  }
+fsm->handle();
+if(millis() - mil > 10000) {
+  Utils::handlePrintDelayed();
+  Serial.println("ok\n");
+  Serial.println(fsm->context.curr_state);
+  mil = millis();
+}
+}
 #endif
 #if 0
+
+
+if(millis() - mil > 1000) {
+  printf("ok\n");
+  mil = millis();
+char data[] = "And hello back to you";
+String str = String(x);
+str.toCharArray(data,4);
+printf("%d;", x);
+rf22.send((uint8_t*)data, 10);
+rf22.waitPacketSent();
+}
+
 #if (PTYPE==0)
     uint8_t data[] = "And hello back to you";
     String str = String(x);
@@ -141,10 +153,4 @@ if (rf22.recv(buf, &len))
 #endif
 #endif
 
-}
-ISR(WDT_vect)
-{
-Serial.println("Watchdog Interrupt - Restarting");
-// you can include any code here. With the reset disabled you could perform an action here every time
-// the watchdog times out...
 }

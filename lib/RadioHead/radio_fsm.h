@@ -26,6 +26,7 @@
 #define RADIO_FSM_H
 
 #include "../../src/fifo.h"
+#include "../../src/utils.h"
 #define TRANSMIT_BUFFER_SIZE  64
 #define SIZE_OF_METADATA      2
 #define TRANSMIT_BUFFER_DATA_SIZE TRANSMIT_BUFFER_SIZE - SIZE_OF_METADATA
@@ -36,10 +37,11 @@ class RadioFSM {
 public:
   RadioFSM(Fifo *fifo);
   enum fsm_events {
-   EVENT_PACKET_RECEIVED,
-   EVENT_PACKET_SENT,
-   EVENT_TIMER_EXPIRY,
-   EVENT_AUTO,
+   EVENT_PACKET_RECEIVED,//0
+   EVENT_PREAMBLE_RECEIVED,//1
+   EVENT_PACKET_SENT,//2
+   EVENT_TIMER_EXPIRY,//3
+   EVENT_AUTO,//4
 
    EVENT_NUM_EVENTS	/* Must be last */
   };
@@ -52,12 +54,13 @@ struct radio_stats{
 };
 enum fsm_states {
 	STATE_FSM_FAULT = 0,	/* Must be zero so undefined transitions land here */
-  STATE_INIT,
-  STATE_RECEIVING_PACKET,
-  STATE_SENDING_PACKET,
-  STATE_RESET,
-  STATE_HOP,
-  STATE_PARSE_RECEIVE,
+  STATE_INIT,//1
+  STATE_RECEIVING_PACKET,//2
+  STATE_SENDING_PACKET,//3
+  STATE_RESET,//4
+  STATE_HOP,//5
+  STATE_PARSE_RECEIVE,//6
+  STATE_RECEIVED_PREAMBLE,//7
 	STATE_NUM_STATES	/* Must be last */
 };
 
@@ -77,10 +80,11 @@ enum fsm_states {
   uint8_t nextHOPChannelUnAcked;
   radio_stats stats[NUMBER_OF_HOP_CHANNELS];
   uint8_t currentHOPChannel;
+  uint8_t hopChannels[NUMBER_OF_HOP_CHANNELS];
 };
   virtual void sent();
   virtual void received();
-  virtual void validPreambleReceived() {};
+  virtual void validPreambleReceived();
   virtual void handle();
   virtual void fsm_init();
   void setRadio(RH_RF22JB *radio);
@@ -91,10 +95,14 @@ enum fsm_states {
   virtual void go_fsm_hop();
   virtual void go_fsm_parse_receive() {printf("parent SHIT\n");};
   virtual void go_fsm_fault();
+  virtual void go_fsm_preamble() {};
+  volatile fsm_context context;
+
 protected:
   RH_RF22JB *m_radio;
   volatile bool hasReceived;
   volatile bool hasSent;
+  volatile bool hasPreamble;
   Fifo *serialFifo;
   struct {
   uint8_t type : 3;
@@ -105,7 +113,6 @@ protected:
   uint8_t dataBuffer[TRANSMIT_BUFFER_DATA_SIZE];
 } radio_packet;
   float getChannelRSSI(uint8_t channel);
-  volatile fsm_context context;
   bool fsm_timer_expired_p();
   void fsm_timer_add_ticks(unsigned long elapsed_us);
   void fsm_timer_cancel();

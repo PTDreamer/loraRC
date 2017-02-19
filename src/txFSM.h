@@ -39,7 +39,7 @@ private:
   void go_fsm_receive();
   void go_fsm_hop();
   void go_fsm_parse_receive();
-
+  void txFSM::go_fsm_preamble();
   void fsm_setup();
 
   PPMDriver *m_ppm;

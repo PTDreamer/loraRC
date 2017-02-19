@@ -27,6 +27,7 @@
 #include "utils.h"
 
 Utils *Utils::mutils = NULL;
+String Utils::temp = "";
 FILE Utils::serial_stdout = FILE();
 Utils::Utils() {
   fdev_setup_stream(&serial_stdout, serial_putchar, NULL, _FDEV_SETUP_WRITE);
@@ -60,6 +61,16 @@ unsigned long Utils::getmsSince(unsigned long value) {
   else return value - timenow;
 }
 
+void Utils::printDelayed(String str) {
+  Utils::temp += str;
+}
+
+void Utils::handlePrintDelayed() {
+  if(Utils::temp == "")
+    return;
+  Serial.println(temp);
+  temp = "";
+}
 #if (MEMORYPROFILE)
 #include <memoryfree.h>
 

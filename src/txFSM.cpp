@@ -52,7 +52,11 @@ void txFSM::fsm_setup() {
 
 	fsm_setup_entry			(STATE_RECEIVING_PACKET, &RadioFSM::go_fsm_receive);
 	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_TIMER_EXPIRY, STATE_HOP);
-	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_PACKET_RECEIVED, STATE_PARSE_RECEIVE);
+	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_PREAMBLE_RECEIVED, STATE_RECEIVED_PREAMBLE);
+
+	fsm_setup_entry			(STATE_RECEIVED_PREAMBLE, &RadioFSM::go_fsm_preamble);
+	fsm_setup_next_state(STATE_RECEIVED_PREAMBLE, EVENT_TIMER_EXPIRY, STATE_HOP);
+	fsm_setup_next_state(STATE_RECEIVED_PREAMBLE, EVENT_PACKET_RECEIVED, STATE_PARSE_RECEIVE);
 
 	fsm_setup_entry			(STATE_PARSE_RECEIVE, &RadioFSM::go_fsm_parse_receive);
 	fsm_setup_next_state(STATE_PARSE_RECEIVE, EVENT_AUTO, STATE_HOP);
@@ -61,8 +65,21 @@ void txFSM::fsm_setup() {
 	fsm_setup_next_state(STATE_HOP, EVENT_AUTO, STATE_SENDING_PACKET);
 }
 
+void txFSM::go_fsm_preamble() {
+	Utils::printDelayed("Preamble ");
+	fsm_timer_start(1000000);
+
+}
 
 void txFSM::go_fsm_hop() {
+	Utils::printDelayed("HOP ");
+	++context.currentHOPChannel;
+	if(context.currentHOPChannel == NUMBER_OF_HOP_CHANNELS)
+		context.currentHOPChannel = 0;
+	m_radio->setFHChannel(context.hopChannels[context.currentHOPChannel]);
+	Utils::printDelayed(String(context.currentHOPChannel));
+
+	return;
 		if(!context.lastPacketAcked) {
 		if(getChannelRSSI(context.nextHOPChannel) > getChannelRSSI(context.currentHOPChannel)) {
 			//hop to nextHOPChannel
@@ -80,6 +97,9 @@ void txFSM::go_fsm_hop() {
 }
 
 void txFSM::go_fsm_parse_receive() {
+	Utils::printDelayed("parse ");
+Utils::printDelayed(String(context.currentHOPChannel));
+return;
 	uint8_t len = sizeof(radio_packet);
 	m_radio->recv((uint8_t*)&radio_packet, &len);
 
@@ -106,7 +126,11 @@ void txFSM::go_fsm_parse_receive() {
 }
 
 void txFSM::go_fsm_receive() {
-	fsm_timer_start(MAX_FSM_SEND_TIME);
+	Utils::printDelayed("Receive ");
+	m_radio->setFHChannel(0);
+	m_radio->setModeRx();
+	fsm_timer_start(7500);
+	//fsm_timer_start(MAX_FSM_SEND_TIME);
 }
 
 void txFSM::go_fsm_reset() {
@@ -115,10 +139,9 @@ void txFSM::go_fsm_reset() {
 }
 
 void txFSM::go_fsm_transmit() {
-	printf("transmiting\n");
-	return;
+		Utils::printDelayed("transmit ");
 	PPMDriver::status s = m_ppm->getStatus();
-	uint8_t usedBytes = 0;
+	uint8_t usedBytes = SIZE_OF_METADATA;
 	uint8_t serialBytes = 0;
 	if(s.timeout) {
 		radio_packet.type = FAILSAFE;

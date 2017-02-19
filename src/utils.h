@@ -39,11 +39,15 @@ public:
   static FILE serial_stdout;
   static int serial_putchar(char c, FILE* f);
   static void printfInit();
+  static void printDelayed(String str);
+  static void handlePrintDelayed();
   #if (MEMORYPROFILE)
   static void memrep();
   static void check_mem();
   #endif
   Utils();
+private:
+  static String temp;
 public:
   static Utils *mutils;
 };

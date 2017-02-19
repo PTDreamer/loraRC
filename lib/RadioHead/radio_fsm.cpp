@@ -23,16 +23,25 @@ RadioFSM::RadioFSM(Fifo *fifo): serialFifo(fifo) {
   context.fsm_timer_enabled = false;
   hasReceived = false;
   hasSent = false;
+  hasPreamble = false;
+  for(int x = 0; x < NUMBER_OF_HOP_CHANNELS; ++x) {
+    context.hopChannels[x] = x;
+  }
+  context.currentHOPChannel = 0;
 }
 void RadioFSM::received() {
   hasReceived = true;
-  Serial.print("received handler\n");
 }
 
 void RadioFSM::sent() {
   hasSent = true;
-  Serial.print("sent handler\n");
 }
+
+void RadioFSM::validPreambleReceived() {
+  if(context.curr_state != STATE_RECEIVED_PREAMBLE)
+    hasPreamble = true;
+}
+
 void RadioFSM::setRadio(RH_RF22JB *radio) {
 	m_radio = radio;
 }
@@ -103,7 +112,12 @@ void RadioFSM::fsm_inject_event(enum fsm_events event)
 	 * state.  This way, it cannot ever know what the previous state was.
 	 */
    //printf("inject event %d to state %d next %d\n", event, context.curr_state, fsm_transitions[context.curr_state].next_state[event]);
-	context.curr_state = fsm_transitions[context.curr_state].next_state[event];
+   context.fsm_timer_enabled = false;
+   int t = context.curr_state;
+  context.curr_state = fsm_transitions[context.curr_state].next_state[event];
+  if(context.curr_state == STATE_FSM_FAULT) {
+    printf("state %d event %d\n", t, event);
+  }
 	/* Call the entry function (if any) for the next state. */
 	if (fsm_transitions[context.curr_state].entry_fn) {
 		(this->*fsm_transitions[context.curr_state].entry_fn)();
@@ -148,11 +162,6 @@ void RadioFSM::handle() {
 static unsigned long prev_ticks = micros();
 unsigned long elapsed_ticks = micros() - prev_ticks;
 //printf("handle: hasReceived %d hasSent %d timerEnabled %d\n", hasReceived, hasSent, context.fsm_timer_enabled);
-if(hasReceived) {
-  hasReceived = false;
-  fsm_inject_event(EVENT_PACKET_RECEIVED);
-}
-return;
 	/* Run the fsm timer */
 	if (elapsed_ticks) {
 		fsm_timer_add_ticks(elapsed_ticks);
@@ -168,5 +177,13 @@ return;
   if(hasSent) {
     hasSent = false;
     fsm_inject_event(EVENT_PACKET_SENT);
+  }
+  if(hasPreamble) {
+    hasPreamble = false;
+    fsm_inject_event(EVENT_PREAMBLE_RECEIVED);
+  }
+  if(hasReceived) {
+    hasReceived = false;
+    fsm_inject_event(EVENT_PACKET_RECEIVED);
   }
 }

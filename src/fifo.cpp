@@ -74,7 +74,7 @@ uint8_t Fifo::pop(bool &ok, bool pending) {
 uint8_t Fifo::pop(volatile uint8_t *values, uint8_t size) {
   bool ok = true;
   uint8_t index = 0;
-  while(ok || (index < size)) {
+  while(ok && (index < size)) {
     values[index] = pop(ok);
     ++index;
   }
@@ -85,7 +85,7 @@ uint8_t Fifo::pendingPop(volatile uint8_t *values, uint8_t size) {
   bool ok = true;
   uint8_t index = 0;
   pending_head = buffer_head;
-  while(ok || (index < size)) {
+  while(ok && (index < size)) {
     values[index] = pop(ok, true);
     ++index;
   }
@@ -99,7 +99,7 @@ void Fifo::confirmPending() {
 uint8_t Fifo::push(volatile uint8_t *values, uint8_t size) {
   bool ok = true;
   uint8_t index = 0;
-  while(ok || (index < size)) {
+  while(ok && (index < size)) {
     ok = push(values[index]);
     ++index;
   }

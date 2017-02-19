@@ -32,7 +32,8 @@
 rxFSM::rxFSM(PPM_OutDriver *ppm, Fifo *fifo) : RadioFSM(fifo), m_ppm(ppm) {
 
 	fsm_setup();
-
+	temp = 0;
+	temp2 = 0;
 }
 
 void rxFSM::fsm_setup() {
@@ -49,19 +50,35 @@ void rxFSM::fsm_setup() {
 	fsm_setup_entry			(STATE_RESET, &RadioFSM::go_fsm_reset);
 	fsm_setup_next_state(STATE_RESET, EVENT_AUTO, STATE_RECEIVING_PACKET);
 
+	fsm_setup_entry			(STATE_RECEIVED_PREAMBLE, &RadioFSM::go_fsm_preamble);
+	fsm_setup_next_state(STATE_RECEIVED_PREAMBLE, EVENT_TIMER_EXPIRY, STATE_SENDING_PACKET);
+	fsm_setup_next_state(STATE_RECEIVED_PREAMBLE, EVENT_PACKET_RECEIVED, STATE_PARSE_RECEIVE);
+
 	fsm_setup_entry			(STATE_RECEIVING_PACKET, &RadioFSM::go_fsm_receive);
 	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_TIMER_EXPIRY, STATE_HOP);
-	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_PACKET_RECEIVED, STATE_PARSE_RECEIVE);
+	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_PREAMBLE_RECEIVED, STATE_RECEIVED_PREAMBLE);
 
 	fsm_setup_entry			(STATE_PARSE_RECEIVE, &RadioFSM::go_fsm_parse_receive);
-	fsm_setup_next_state(STATE_PARSE_RECEIVE, EVENT_AUTO, STATE_HOP);
+	fsm_setup_next_state(STATE_PARSE_RECEIVE, EVENT_AUTO, STATE_SENDING_PACKET);
 
 	fsm_setup_entry			(STATE_HOP, &RadioFSM::go_fsm_hop);
 	fsm_setup_next_state(STATE_HOP, EVENT_AUTO, STATE_RECEIVING_PACKET);
 }
-
+void rxFSM::go_fsm_preamble() {
+	unsigned long zzz = micros() - temp;
+	if(zzz > temp2)
+		temp2 = zzz;
+	Utils::printDelayed("Preamble ");
+	Utils::printDelayed(String(temp2));
+	fsm_timer_start(1000000);
+}
 void rxFSM::go_fsm_hop() {
-		Serial.print("HOP\n");
+		Utils::printDelayed("HOP ");
+		++context.currentHOPChannel;
+		if(context.currentHOPChannel == NUMBER_OF_HOP_CHANNELS)
+		context.currentHOPChannel = 0;
+		m_radio->setFHChannel(context.hopChannels[context.currentHOPChannel]);
+		Utils::printDelayed(String(context.currentHOPChannel));
 		return;
 		if(!context.lastPacketAcked) {
 		if(getChannelRSSI(context.nextHOPChannel) > getChannelRSSI(context.currentHOPChannel)) {
@@ -80,7 +97,8 @@ void rxFSM::go_fsm_hop() {
 }
 
 void rxFSM::go_fsm_parse_receive() {
-	Serial.print("parse receive\n");
+	Utils::printDelayed("parse ");
+	Utils::printDelayed(String(context.currentHOPChannel));
 	return;
 	uint8_t len = sizeof(radio_packet);
 	m_radio->recv((uint8_t*)&radio_packet, &len);
@@ -104,18 +122,21 @@ void rxFSM::go_fsm_parse_receive() {
 }
 
 void rxFSM::go_fsm_receive() {
-	Serial.print("receiving here\n");
+	Utils::printDelayed("Receive ");
+	temp = micros();
 	m_radio->setModeRx();
 	//fsm_timer_start(MAX_FSM_SEND_TIME);
+	fsm_timer_start(7500);
 }
 
 void rxFSM::go_fsm_reset() {
 		m_radio->reset();
-		//add configuration
 }
 
 void rxFSM::go_fsm_transmit() {
-	uint8_t usedBytes = 0;
+	m_radio->setFHChannel(0);
+	Utils::printDelayed("transmit ");
+	uint8_t usedBytes = SIZE_OF_METADATA;
 	uint8_t serialBytes = 0;
  {
 		serialBytes = serialFifo->pendingPop(radio_packet.dataBuffer, TRANSMIT_BUFFER_DATA_SIZE - usedBytes);
@@ -135,7 +156,7 @@ void rxFSM::go_fsm_transmit() {
 	radio_packet.nextHOPChannel = context.nextHOPChannelUnAcked;
 	radio_packet.rxSeq = ~context.lastReceivedSeq;
 	m_radio->send((uint8_t*)&radio_packet, usedBytes);
-	fsm_timer_start(sendTimeout(usedBytes));
+	//fsm_timer_start(sendTimeout(usedBytes));
 }
 
 unsigned long rxFSM::sendTimeout(uint8_t sentBytes) {
