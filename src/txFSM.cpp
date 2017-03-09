@@ -43,62 +43,68 @@ void txFSM::fsm_setup() {
 	fsm_setup_entry			(STATE_INIT, NULL);
 	fsm_setup_next_state(STATE_INIT, EVENT_AUTO, STATE_SENDING_PACKET);
 
+
 	fsm_setup_entry			(STATE_SENDING_PACKET, &RadioFSM::go_fsm_transmit);
 	fsm_setup_next_state(STATE_SENDING_PACKET, EVENT_TIMER_EXPIRY, STATE_RESET);
 	fsm_setup_next_state(STATE_SENDING_PACKET, EVENT_PACKET_SENT, STATE_RECEIVING_PACKET);
 
-	fsm_setup_entry			(STATE_RESET, &RadioFSM::go_fsm_reset);
-	fsm_setup_next_state(STATE_RESET, EVENT_AUTO, STATE_SENDING_PACKET);
-
 	fsm_setup_entry			(STATE_RECEIVING_PACKET, &RadioFSM::go_fsm_receive);
-	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_TIMER_EXPIRY, STATE_HOP);
-	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_PREAMBLE_RECEIVED, STATE_RECEIVED_PREAMBLE);
-
-	fsm_setup_entry			(STATE_RECEIVED_PREAMBLE, &RadioFSM::go_fsm_preamble);
-	fsm_setup_next_state(STATE_RECEIVED_PREAMBLE, EVENT_TIMER_EXPIRY, STATE_HOP);
-	fsm_setup_next_state(STATE_RECEIVED_PREAMBLE, EVENT_PACKET_RECEIVED, STATE_PARSE_RECEIVE);
+	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_TIMER_EXPIRY, STATE_RECEIVE_TIMEOUT);
+	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_PACKET_RECEIVED, STATE_PARSE_RECEIVE);
 
 	fsm_setup_entry			(STATE_PARSE_RECEIVE, &RadioFSM::go_fsm_parse_receive);
 	fsm_setup_next_state(STATE_PARSE_RECEIVE, EVENT_AUTO, STATE_HOP);
 
 	fsm_setup_entry			(STATE_HOP, &RadioFSM::go_fsm_hop);
 	fsm_setup_next_state(STATE_HOP, EVENT_AUTO, STATE_SENDING_PACKET);
+
+	fsm_setup_entry			(STATE_RESET, &RadioFSM::go_fsm_reset);
+	fsm_setup_next_state(STATE_RESET, EVENT_AUTO, STATE_SENDING_PACKET);
+
+	fsm_setup_entry			(STATE_RECEIVE_TIMEOUT, &RadioFSM::go_fsm_receive_timeout);
+	fsm_setup_next_state(STATE_RECEIVE_TIMEOUT, EVENT_AUTO, STATE_HOP);
+
+}
+void txFSM::go_fsm_preamble_timeout() {
+	//Utils::printDelayed("PRETIMEOUT");
+	unsigned long zzz = micros() - temp;
+	Utils::printDelayed("PRETIMEOUT");
+	Utils::printDelayed(String(zzz));
+
+}
+void txFSM::go_fsm_receive_timeout() {
+	Utils::printDelayed("RECEIVETIMEOUT");
 }
 
 void txFSM::go_fsm_preamble() {
+	unsigned long zzz = micros() - temp;
 	Utils::printDelayed("Preamble ");
-	fsm_timer_start(1000000);
+	Utils::printDelayed(String(zzz));
 
 }
 
 void txFSM::go_fsm_hop() {
-	Utils::printDelayed("HOP ");
-	++context.currentHOPChannel;
-	if(context.currentHOPChannel == NUMBER_OF_HOP_CHANNELS)
-		context.currentHOPChannel = 0;
-	m_radio->setFHChannel(context.hopChannels[context.currentHOPChannel]);
-	Utils::printDelayed(String(context.currentHOPChannel));
+	if(!context.hasSeenReceiver)
+		return;
+	if(context.packetsThisHop > PACKETS_PER_HOP) {
+		context.packetsThisHop = 0;
+		Utils::printDelayed("HOP ");
+		++context.currentHOPChannel;
+		if(context.currentHOPChannel == NUMBER_OF_HOP_CHANNELS)
+			context.currentHOPChannel = 0;
 
-	return;
-		if(!context.lastPacketAcked) {
-		if(getChannelRSSI(context.nextHOPChannel) > getChannelRSSI(context.currentHOPChannel)) {
-			//hop to nextHOPChannel
-			float better = 0;
-			uint8_t bestChannel = 0;
-			for(uint8_t i = 0; i < NUMBER_OF_HOP_CHANNELS; ++ i) {
-				if(getChannelRSSI(i) > better) {
-					bestChannel = i;
-					better = getChannelRSSI(i);
-				}
-			}
-			context.nextHOPChannelUnAcked = bestChannel;
-		}
+		m_radio->setFHChannel(context.currentHOPChannel);
 	}
+	if(context.debug)
+		printf("hop %d\n", context.currentHOPChannel);
 }
 
 void txFSM::go_fsm_parse_receive() {
+	context.hasSeenReceiver = true;
+	unsigned long zzz = micros() - temp;
 	Utils::printDelayed("parse ");
-Utils::printDelayed(String(context.currentHOPChannel));
+	Utils::printDelayed(String(zzz));
+	++context.stats[context.currentHOPChannel].receivedOK;
 return;
 	uint8_t len = sizeof(radio_packet);
 	m_radio->recv((uint8_t*)&radio_packet, &len);
@@ -126,20 +132,27 @@ return;
 }
 
 void txFSM::go_fsm_receive() {
-	Utils::printDelayed("Receive ");
-	m_radio->setFHChannel(0);
+	fsm_timer_cancel();
 	m_radio->setModeRx();
-	fsm_timer_start(7500);
-	//fsm_timer_start(MAX_FSM_SEND_TIME);
+	Utils::printDelayed("Receive ");
+	fsm_timer_start(20000);//measured 18180
+//	if(!context.fsm_timer2_enabled) {
+	//	Utils::printDelayed("Receive ");
+	//	fsm_timer_start(15000);
+	unsigned long zzz = micros() - temp;
+	Utils::printDelayed(String(zzz));
+	//}
 }
 
 void txFSM::go_fsm_reset() {
-		m_radio->reset();
+	Serial.print("RESET");
+		//m_radio->reset();
 		//add configuration
 }
 
 void txFSM::go_fsm_transmit() {
-		Utils::printDelayed("transmit ");
+	if(context.debug)
+		Serial.print("transmit ");
 	PPMDriver::status s = m_ppm->getStatus();
 	uint8_t usedBytes = SIZE_OF_METADATA;
 	uint8_t serialBytes = 0;
@@ -170,10 +183,15 @@ void txFSM::go_fsm_transmit() {
 	context.lastPacketType = (packet_type)radio_packet.type;
 	radio_packet.nextHOPChannel = context.nextHOPChannelUnAcked;
 	radio_packet.rxSeq = ~context.lastReceivedSeq;
-	m_radio->send((uint8_t*)&radio_packet, usedBytes);
+	if(context.hasSeenReceiver)
+		++context.packetsThisHop;
+	radio_packet.packetsThisHop = context.packetsThisHop;
+	m_radio->send((uint8_t*)&radio_packet, 63);
+	temp = micros();
+	fsm_timer_start(sendTimeout(63));
 	//fsm_timer_start(sendTimeout(usedBytes));
 }
 
 unsigned long txFSM::sendTimeout(uint8_t sentBytes) {
-	return 0;
+	return 1076 + sentBytes * 64 + 5400;//200 coeficiente de cagaco
 }

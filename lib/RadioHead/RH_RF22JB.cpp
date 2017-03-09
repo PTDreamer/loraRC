@@ -105,7 +105,7 @@ bool RH_RF22JB::init()
 
     // Enable interrupt output on the radio. Interrupt line will now go high until
     // an interrupt occurs
-    spiWrite(RH_RF22_REG_05_INTERRUPT_ENABLE1, RH_RF22_ENTXFFAEM | RH_RF22_ENRXFFAFULL | RH_RF22_ENPKSENT | RH_RF22_ENPKVALID | RH_RF22_ENCRCERROR | RH_RF22_ENFFERR);
+    spiWrite(RH_RF22_REG_05_INTERRUPT_ENABLE1, RH_RF22_ENPKSENT | RH_RF22_ENPKVALID | RH_RF22_ENCRCERROR | RH_RF22_ENFFERR);
     spiWrite(RH_RF22_REG_06_INTERRUPT_ENABLE2, RH_RF22_ENPREAVAL);
 
     // Set up interrupt handler
@@ -188,20 +188,25 @@ void RH_RF22JB::handleInterrupt()
     	clearRxBuf();
       if(radio_fsm)
         radio_fsm->validPreambleReceived();
-      	_lastRssi = (int8_t)(-120 + ((spiRead(RH_RF22_REG_26_RSSI) / 2)));
-      	_lastPreambleTime = millis();
-      }
-      if (_lastInterruptFlags[0] & RH_RF22_IPKVALID)
-      {
-          uint8_t len = spiRead(RH_RF22_REG_4B_RECEIVED_PACKET_LENGTH);
-          if (   len >  RH_RF22_MAX_MESSAGE_LEN
-          	    || len < _bufLen)
-          {
+    	_lastRssi = (int8_t)(-120 + ((spiRead(RH_RF22_REG_26_RSSI) / 2)));
+    	_lastPreambleTime = millis();
+    }
+    if (_lastInterruptFlags[1] & RH_RF22_IPREAINVAL)
+    {
+      if(radio_fsm)
+        radio_fsm->invalidPreamble();
+    }
+    if (_lastInterruptFlags[0] & RH_RF22_IPKVALID)
+    {
+        uint8_t len = spiRead(RH_RF22_REG_4B_RECEIVED_PACKET_LENGTH);
+        if (   len >  RH_RF22_MAX_MESSAGE_LEN
+        	    || len < _bufLen)
+        {
         	    _rxBad++;
         	    _mode = RHModeIdle;
         	    clearRxBuf();
               return; // Hmmm receiver buffer overflow.
-        	}
+      	}
         	spiBurstRead(RH_RF22_REG_7F_FIFO_ACCESS, _buf + _bufLen, len - _bufLen);
           resetRxFifo();
 

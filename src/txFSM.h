@@ -39,10 +39,14 @@ private:
   void go_fsm_receive();
   void go_fsm_hop();
   void go_fsm_parse_receive();
-  void txFSM::go_fsm_preamble();
+  void go_fsm_preamble();
+  void go_fsm_receive_timeout();
+  void go_fsm_preamble_timeout();
   void fsm_setup();
 
   PPMDriver *m_ppm;
   unsigned long sendTimeout(uint8_t);
+  unsigned long temp;
+
 };
 #endif

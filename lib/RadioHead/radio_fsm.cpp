@@ -21,16 +21,26 @@
 #include "../../src/utils.h"
 RadioFSM::RadioFSM(Fifo *fifo): serialFifo(fifo) {
   context.fsm_timer_enabled = false;
+  context.fsm_timer2_enabled = false;
   hasReceived = false;
   hasSent = false;
-  hasPreamble = false;
   for(int x = 0; x < NUMBER_OF_HOP_CHANNELS; ++x) {
     context.hopChannels[x] = x;
   }
   context.currentHOPChannel = 0;
+  context.hasSeenReceiver = false;
+  context.packetsThisHop = 0;
+  for(int x = 0; x < NUMBER_OF_HOP_CHANNELS; ++x) {
+    context.stats[x].sentOK = 0;
+    context.stats[x].receivedOK = 0;
+    context.stats[x].sentNOK = 0;
+    context.stats[x].receivedNOK = 0;
+  }
+  context.debug = false;
 }
 void RadioFSM::received() {
   hasReceived = true;
+  //Serial.println("RECEIVED");
 }
 
 void RadioFSM::sent() {
@@ -38,8 +48,11 @@ void RadioFSM::sent() {
 }
 
 void RadioFSM::validPreambleReceived() {
-  if(context.curr_state != STATE_RECEIVED_PREAMBLE)
-    hasPreamble = true;
+
+}
+
+void RadioFSM::invalidPreamble() {
+
 }
 
 void RadioFSM::setRadio(RH_RF22JB *radio) {
@@ -86,6 +99,38 @@ bool RadioFSM::fsm_timer_expired_p()
 	return false;
 }
 
+void RadioFSM::fsm_timer2_start(unsigned long timer_duration_us)
+{
+	context.fsm_timer2_remaining_us = timer_duration_us;
+	context.fsm_timer2_enabled = true;
+}
+
+void RadioFSM::fsm_timer2_cancel()
+{
+	context.fsm_timer2_enabled = false;
+}
+
+void RadioFSM::fsm_timer2_add_ticks(unsigned long elapsed_us)
+{
+	if (context.fsm_timer2_enabled) {
+		if (elapsed_us >= context.fsm_timer2_remaining_us) {
+			/* Timer has expired */
+			context.fsm_timer2_remaining_us = 0;
+		} else {
+			/* Timer is still running, account for the elapsed time */
+			context.fsm_timer2_remaining_us -= elapsed_us;
+		}
+	}
+}
+
+bool RadioFSM::fsm_timer2_expired_p()
+{
+	if ((context.fsm_timer2_enabled) && (context.fsm_timer2_remaining_us == 0))
+		return true;
+
+	return false;
+}
+
 void RadioFSM::fsm_process_auto()
 {
 	while (fsm_transitions[context.curr_state].next_state[EVENT_AUTO]) {
@@ -112,7 +157,6 @@ void RadioFSM::fsm_inject_event(enum fsm_events event)
 	 * state.  This way, it cannot ever know what the previous state was.
 	 */
    //printf("inject event %d to state %d next %d\n", event, context.curr_state, fsm_transitions[context.curr_state].next_state[event]);
-   context.fsm_timer_enabled = false;
    int t = context.curr_state;
   context.curr_state = fsm_transitions[context.curr_state].next_state[event];
   if(context.curr_state == STATE_FSM_FAULT) {
@@ -160,15 +204,23 @@ void RadioFSM::go_fsm_fault()
 void RadioFSM::handle() {
 
 static unsigned long prev_ticks = micros();
-unsigned long elapsed_ticks = micros() - prev_ticks;
 //printf("handle: hasReceived %d hasSent %d timerEnabled %d\n", hasReceived, hasSent, context.fsm_timer_enabled);
 	/* Run the fsm timer */
+  unsigned long elapsed_ticks = micros() - prev_ticks;
 	if (elapsed_ticks) {
 		fsm_timer_add_ticks(elapsed_ticks);
+    fsm_timer2_add_ticks(elapsed_ticks);
 			if (fsm_timer_expired_p() == true) {
+        fsm_timer_cancel();
 				/* Timer has expired, inject an expiry event */
 			fsm_inject_event(EVENT_TIMER_EXPIRY);
-		}
+		  }
+      if (fsm_timer2_expired_p() == true) {
+        fsm_timer2_cancel();
+  				/* Timer has expired, inject an expiry event */
+  			fsm_inject_event(EVENT_TIMER2_EXPIRY);
+  		}
+
 			/* pulse the LEDs */
 		//	led_pwm_add_ticks(&bl_fsm_context.leds, elapsed_ticks);
 	//		led_pwm_update_leds(&bl_fsm_context.leds);
@@ -177,13 +229,11 @@ unsigned long elapsed_ticks = micros() - prev_ticks;
   if(hasSent) {
     hasSent = false;
     fsm_inject_event(EVENT_PACKET_SENT);
-  }
-  if(hasPreamble) {
-    hasPreamble = false;
-    fsm_inject_event(EVENT_PREAMBLE_RECEIVED);
+    return;
   }
   if(hasReceived) {
     hasReceived = false;
     fsm_inject_event(EVENT_PACKET_RECEIVED);
+    return;
   }
 }

@@ -40,6 +40,8 @@ private:
   void go_fsm_receive();
   void go_fsm_hop();
   void go_fsm_parse_receive();
+  void go_fsm_receive_timeout();
+  void go_fsm_preamble_timeout();
   void fsm_setup();
   void go_fsm_preamble();
   PPM_OutDriver *m_ppm;

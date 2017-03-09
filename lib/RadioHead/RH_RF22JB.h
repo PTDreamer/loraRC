@@ -26,15 +26,15 @@
 // Can be pre-defined to a smaller size (to save SRAM) prior to including this header
 #ifndef RH_RF22_MAX_MESSAGE_LEN
 //#define RH_RF22_MAX_MESSAGE_LEN 255
-#define RH_RF22_MAX_MESSAGE_LEN 50
+#define RH_RF22_MAX_MESSAGE_LEN 64
 #endif
 
 // Max number of octets the RF22 Rx and Tx FIFOs can hold
 #define RH_RF22_FIFO_SIZE 64
 
 // These values we set for FIFO thresholds (4, 55) are actually the same as the POR values
-#define RH_RF22_TXFFAEM_THRESHOLD 4
-#define RH_RF22_RXFFAFULL_THRESHOLD 55
+#define RH_RF22_TXFFAEM_THRESHOLD 0
+#define RH_RF22_RXFFAFULL_THRESHOLD 64
 
 // Number of registers to be passed to setModemConfig(). Obsolete.
 #define RH_RF22_NUM_MODEM_CONFIG_REGS 18

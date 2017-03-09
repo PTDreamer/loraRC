@@ -19,7 +19,7 @@
 #define PPM_out 3
 
 #include <RH_RF22JB.h>
-#include <RH_RF22.h>
+
 #include "softspidriver.h"
 #include "configComms.h"
 #if (ISTRANSMITER)
@@ -71,8 +71,8 @@ void setup()
 
 MEM_REPORT;
   #if (ISTRANSMITER)
-  PPMDriver ppm(PIN3, 8);
-  fsm = new txFSM(&ppm, &fifo);
+  PPMDriver *ppm = new PPMDriver(PIN3, 8);
+  fsm = new txFSM(ppm, &fifo);
   #else
   PPM_OutDriver *ppm = new PPM_OutDriver(PIN3, 8);
   fsm = new rxFSM(ppm, &fifo);
@@ -91,10 +91,20 @@ unsigned long mil = millis();
 void loop()
 {
   fsm->fsm_init();
+/*
+  uint8_t data[] = "And hello back to you";
+  String str = String(x);
+  char charBuffer[50];
+  str.toCharArray(data,4);
+//  memcpy(data, charBuffer, 50);
+  printf("%d;", x);
+  rf22.send(data, 50);
+  rf22.waitPacketSent();*/
+  uint32_t lastCount = 0;
   while (true) {
 #if (ISTRANSMITER == 0)
   fsm->handle();
-  if(millis() - mil > 10000) {
+  if(true  && (millis() - mil > 1000)) {
     Utils::handlePrintDelayed();
     Serial.println("ok\n");
     Serial.println(x);
@@ -105,10 +115,13 @@ void loop()
 }
 #else
 fsm->handle();
-if(millis() - mil > 10000) {
+if(millis() - mil > 5000) {
   Utils::handlePrintDelayed();
   Serial.println("ok\n");
-  Serial.println(fsm->context.curr_state);
+  printf("%d %d %d %d",fsm->context.stats[0].receivedOK,fsm->context.stats[1].receivedOK,fsm->context.stats[2].receivedOK,fsm->context.stats[3].receivedOK);
+//  if(fsm->context.stats[0].receivedOK == lastCount)
+  //  fsm->context.debug = true;
+  lastCount = fsm->context.stats[0].receivedOK;
   mil = millis();
 }
 }

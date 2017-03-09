@@ -31,6 +31,7 @@
 #define SIZE_OF_METADATA      2
 #define TRANSMIT_BUFFER_DATA_SIZE TRANSMIT_BUFFER_SIZE - SIZE_OF_METADATA
 #define NUMBER_OF_HOP_CHANNELS  4
+#define PACKETS_PER_HOP 10
 class RH_RF22JB;
 
 class RadioFSM {
@@ -39,9 +40,11 @@ public:
   enum fsm_events {
    EVENT_PACKET_RECEIVED,//0
    EVENT_PREAMBLE_RECEIVED,//1
+   EVENT_PREAMBLE_TIMEOUT,
    EVENT_PACKET_SENT,//2
    EVENT_TIMER_EXPIRY,//3
-   EVENT_AUTO,//4
+   EVENT_TIMER2_EXPIRY,//4
+   EVENT_AUTO,//5
 
    EVENT_NUM_EVENTS	/* Must be last */
   };
@@ -60,21 +63,26 @@ enum fsm_states {
   STATE_RESET,//4
   STATE_HOP,//5
   STATE_PARSE_RECEIVE,//6
-  STATE_RECEIVED_PREAMBLE,//7
+  STATE_RECEIVE_TIMEOUT,
+  STATE_STAY,
 	STATE_NUM_STATES	/* Must be last */
 };
 
   struct fsm_context {
 	enum fsm_states curr_state;
-
+  bool hasSeenReceiver;
 	/* FSM timer */
 	bool fsm_timer_enabled;
 	unsigned long fsm_timer_remaining_us;
+  bool fsm_timer2_enabled;
+  unsigned long fsm_timer2_remaining_us;
 
   uint8_t usedBytes;
   bool lastReceivedSeq;
   bool lastSentSeq;
   bool lastPacketAcked;
+  bool debug;
+  uint8_t packetsThisHop;
   packet_type lastPacketType;
   uint8_t nextHOPChannel;
   uint8_t nextHOPChannelUnAcked;
@@ -82,9 +90,13 @@ enum fsm_states {
   uint8_t currentHOPChannel;
   uint8_t hopChannels[NUMBER_OF_HOP_CHANNELS];
 };
+
+
+
   virtual void sent();
   virtual void received();
   virtual void validPreambleReceived();
+  virtual void invalidPreamble();
   virtual void handle();
   virtual void fsm_init();
   void setRadio(RH_RF22JB *radio);
@@ -93,30 +105,38 @@ enum fsm_states {
   virtual void go_fsm_reset();
   virtual void go_fsm_receive();
   virtual void go_fsm_hop();
-  virtual void go_fsm_parse_receive() {printf("parent SHIT\n");};
+  virtual void go_fsm_parse_receive();
   virtual void go_fsm_fault();
   virtual void go_fsm_preamble() {};
+  virtual void go_fsm_preamble_timeout();
+  virtual void go_fsm_receive_timeout();
   volatile fsm_context context;
 
 protected:
   RH_RF22JB *m_radio;
   volatile bool hasReceived;
   volatile bool hasSent;
-  volatile bool hasPreamble;
   Fifo *serialFifo;
+
   struct {
   uint8_t type : 3;
   uint8_t txSeq : 1;
   uint8_t rxSeq : 1;
   uint8_t : 0;
-  uint8_t nextHOPChannel : 8;
+  uint8_t nextHOPChannel : 4;
+  uint8_t packetsThisHop : 4;
   uint8_t dataBuffer[TRANSMIT_BUFFER_DATA_SIZE];
 } radio_packet;
+
   float getChannelRSSI(uint8_t channel);
   bool fsm_timer_expired_p();
   void fsm_timer_add_ticks(unsigned long elapsed_us);
   void fsm_timer_cancel();
   void fsm_timer_start(unsigned long timer_duration_us);
+  bool fsm_timer2_expired_p();
+  void fsm_timer2_add_ticks(unsigned long elapsed_us);
+  void fsm_timer2_cancel();
+  void fsm_timer2_start(unsigned long timer_duration_us);
   void fsm_process_auto();
   void fsm_inject_event(enum fsm_events event);
   enum RadioFSM::fsm_states fsm_get_state();
