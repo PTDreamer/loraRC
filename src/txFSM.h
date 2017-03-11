@@ -45,7 +45,6 @@ private:
   void fsm_setup();
 
   PPMDriver *m_ppm;
-  unsigned long sendTimeout(uint8_t);
   unsigned long temp;
 
 };

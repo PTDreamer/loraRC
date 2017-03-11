@@ -45,74 +45,59 @@ void rxFSM::fsm_setup() {
 
 	fsm_setup_entry			(STATE_RECEIVING_PACKET, &RadioFSM::go_fsm_receive);
 	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_PACKET_RECEIVED, STATE_PARSE_RECEIVE);
+	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_TIMER_EXPIRY, STATE_RECEIVE_TIMEOUT);
 
 	fsm_setup_entry			(STATE_PARSE_RECEIVE, &RadioFSM::go_fsm_parse_receive);
 	fsm_setup_next_state(STATE_PARSE_RECEIVE, EVENT_AUTO, STATE_SENDING_PACKET);
 
 	fsm_setup_entry			(STATE_SENDING_PACKET, &RadioFSM::go_fsm_transmit);
-	//fsm_setup_next_state(STATE_SENDING_PACKET, EVENT_TIMER_EXPIRY, STATE_RESET);
+	fsm_setup_next_state(STATE_SENDING_PACKET, EVENT_TIMER_EXPIRY, STATE_RESET);
 	fsm_setup_next_state(STATE_SENDING_PACKET, EVENT_PACKET_SENT, STATE_HOP);
 
 	fsm_setup_entry			(STATE_HOP, &RadioFSM::go_fsm_hop);
 	fsm_setup_next_state(STATE_HOP, EVENT_AUTO, STATE_RECEIVING_PACKET);
 
 	fsm_setup_entry			(STATE_RESET, &RadioFSM::go_fsm_reset);
-	fsm_setup_next_state(STATE_RESET, EVENT_AUTO, STATE_RECEIVING_PACKET);
-
-
-
-//	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_TIMER_EXPIRY, STATE_PREAMBLE_TIMEOUT);
-//	fsm_setup_next_state(STATE_RECEIVING_PACKET, EVENT_TIMER2_EXPIRY, STATE_RECEIVE_TIMEOUT);
-
-
-
+	fsm_setup_next_state(STATE_RESET, EVENT_AUTO, STATE_INIT);
 
 	fsm_setup_entry			(STATE_RECEIVE_TIMEOUT, &RadioFSM::go_fsm_receive_timeout);
 	fsm_setup_next_state(STATE_RECEIVE_TIMEOUT, EVENT_AUTO, STATE_SENDING_PACKET);
 
 
 }
-void rxFSM::go_fsm_preamble_timeout() {
-//	Utils::printDelayed("PRETIMEOUT");
-}
+void rxFSM::go_fsm_preamble_timeout() {}
+void rxFSM::go_fsm_preamble() {}
+
 void rxFSM::go_fsm_receive_timeout() {
-	Utils::printDelayed("RECEIVETIMEOUT");
+		++context.stats[context.currentHOPChannel].receivedNOK;
+		++context.numberOfRxTimeouts;
+		++context.packetsThisHop;
+		if((context.numberOfRxTimeouts > 3) && context.isInSync) {
+			context.isInSync = false;
+		}
 }
-void rxFSM::go_fsm_preamble() {
-	unsigned long zzz = micros() - temp;
-	//if(zzz > temp2)
-	//	temp2 = zzz;
-	fsm_timer_cancel();
-	Utils::printDelayed("Preamble");
-	Utils::printDelayed(String(zzz));
-}
+
 void rxFSM::go_fsm_hop() {
 	if(context.packetsThisHop > PACKETS_PER_HOP) {
 		context.packetsThisHop = 0;
-		Utils::printDelayed("HOP ");
 		++context.currentHOPChannel;
 		if(context.currentHOPChannel == NUMBER_OF_HOP_CHANNELS)
 			context.currentHOPChannel = 0;
 		m_radio->setFHChannel(context.currentHOPChannel);
-		printf("hop %d", context.currentHOPChannel);
 	}
 }
 
 void rxFSM::go_fsm_parse_receive() {
-	fsm_timer_cancel();
-	fsm_timer2_cancel();
+	++context.stats[context.currentHOPChannel].receivedOK;
+	context.isInSync = true;
+	context.numberOfRxTimeouts = 0;
 	unsigned long zzz = micros() - temp;
-	if(zzz > temp2)
-		temp2 = zzz;
-	Utils::printDelayed("Parse");
 	uint8_t len = sizeof(radio_packet);
 	m_radio->recv((uint8_t*)&radio_packet, &len);
 	context.packetsThisHop = radio_packet.packetsThisHop;
-	Utils::printDelayed(String(context.packetsThisHop));
 	return;
 	if(radio_packet.rxSeq == ~context.lastReceivedSeq) {
 		++context.stats[context.currentHOPChannel].receivedOK;
-	//	Serial.write(radio_packet.dataBuffer, len - SIZE_OF_METADATA);
 	}
 	else {
 		++context.stats[context.currentHOPChannel].receivedNOK;
@@ -131,26 +116,21 @@ void rxFSM::go_fsm_parse_receive() {
 
 void rxFSM::go_fsm_receive() {
 	m_radio->setModeRx();
-
-	//m_radio->setModeRx();
-
-	//fsm_timer_start(3000);
-	//if(!context.fsm_timer2_enabled) {
-		Utils::printDelayed("Receive ");
-	//	fsm_timer2_start(230000);
+	if(context.isInSync)
+		fsm_timer_start(20000);
+	else
+		fsm_timer_start(80000);
 		temp = micros();
-	//}
 }
 
 void rxFSM::go_fsm_reset() {
-		m_radio->reset();
-}
+	m_radio->reset();
+	m_radio->init();
+	m_radio->setFrequency(413.0);
+	m_radio->setFHStepSize(25);
+	Serial.print("RESET");}
 
 void rxFSM::go_fsm_transmit() {
-	fsm_timer2_cancel();
-	fsm_timer_cancel();
-	//m_radio->setFHChannel(0);
-	Utils::printDelayed("Transmit");
 	uint8_t usedBytes = SIZE_OF_METADATA;
 	uint8_t serialBytes = 0;
  {
@@ -171,9 +151,5 @@ void rxFSM::go_fsm_transmit() {
 	radio_packet.nextHOPChannel = context.nextHOPChannelUnAcked;
 	radio_packet.rxSeq = ~context.lastReceivedSeq;
 	m_radio->send((uint8_t*)&radio_packet, 63);
-	//fsm_timer_start(sendTimeout(usedBytes));
-}
-
-unsigned long rxFSM::sendTimeout(uint8_t sentBytes) {
-	return 0;
+	fsm_timer_start(50000);
 }

@@ -45,7 +45,6 @@ private:
   void fsm_setup();
   void go_fsm_preamble();
   PPM_OutDriver *m_ppm;
-  unsigned long sendTimeout(uint8_t);
   unsigned long temp;
   unsigned long temp2;
 };

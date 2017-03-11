@@ -37,6 +37,8 @@ RadioFSM::RadioFSM(Fifo *fifo): serialFifo(fifo) {
     context.stats[x].receivedNOK = 0;
   }
   context.debug = false;
+  context.isInSync = false;
+  context.numberOfRxTimeouts = 0;
 }
 void RadioFSM::received() {
   hasReceived = true;

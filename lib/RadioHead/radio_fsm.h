@@ -78,6 +78,8 @@ enum fsm_states {
   unsigned long fsm_timer2_remaining_us;
 
   uint8_t usedBytes;
+  bool isInSync;
+  uint8_t numberOfRxTimeouts;
   bool lastReceivedSeq;
   bool lastSentSeq;
   bool lastPacketAcked;

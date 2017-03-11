@@ -83,6 +83,7 @@ MEM_REPORT;
     Serial.println("init failed");
   rf22.setFrequency(413.0);
   rf22.setFHStepSize(25);
+
   Serial.println("loop");
 }
 int x = 1;
@@ -101,13 +102,15 @@ void loop()
   rf22.send(data, 50);
   rf22.waitPacketSent();*/
   uint32_t lastCount = 0;
+
   while (true) {
 #if (ISTRANSMITER == 0)
   fsm->handle();
   if(true  && (millis() - mil > 1000)) {
-    Utils::handlePrintDelayed();
-    Serial.println("ok\n");
-    Serial.println(x);
+  //  Utils::handlePrintDelayed();
+    printf("OK=%lu %lu %lu %lu\n",fsm->context.stats[0].receivedOK,fsm->context.stats[1].receivedOK,fsm->context.stats[2].receivedOK,fsm->context.stats[3].receivedOK);
+    printf("NOK=%lu %lu %lu %lu\n",fsm->context.stats[0].receivedNOK,fsm->context.stats[1].receivedNOK,fsm->context.stats[2].receivedNOK,fsm->context.stats[3].receivedNOK);
+    printf("SYNC:%d %d\n",fsm->context.isInSync, fsm->context.numberOfRxTimeouts);
     ++x;
     Serial.println(fsm->context.curr_state);
     mil = millis();
@@ -116,9 +119,9 @@ void loop()
 #else
 fsm->handle();
 if(millis() - mil > 5000) {
-  Utils::handlePrintDelayed();
-  Serial.println("ok\n");
-  printf("%d %d %d %d",fsm->context.stats[0].receivedOK,fsm->context.stats[1].receivedOK,fsm->context.stats[2].receivedOK,fsm->context.stats[3].receivedOK);
+  //Utils::handlePrintDelayed();
+  printf("OK=%lu %lu %lu %lu\n",fsm->context.stats[0].receivedOK,fsm->context.stats[1].receivedOK,fsm->context.stats[2].receivedOK,fsm->context.stats[3].receivedOK);
+  printf("NOK=%lu %lu %lu %lu\n",fsm->context.stats[0].receivedNOK,fsm->context.stats[1].receivedNOK,fsm->context.stats[2].receivedNOK,fsm->context.stats[3].receivedNOK);
 //  if(fsm->context.stats[0].receivedOK == lastCount)
   //  fsm->context.debug = true;
   lastCount = fsm->context.stats[0].receivedOK;
